@@ -52,36 +52,64 @@ const DashboardPage = () => {
       try {
         // Fetch patient data
         const patientData = await patientService.getPatients(1, 5);
+        console.log("Patient Data:", patientData.total);
 
         // Fetch examination data
         const pendingExams = await examinationService.getExaminations(1, 100, ExamStatus.PENDING);
         const completedExams = await examinationService.getExaminations(1, 100, ExamStatus.COMPLETED);
         const recentExams = await examinationService.getExaminations(1, 5);
-
+        console.log("Recent Examinations:", recentExams);
+        console.log("Pending Examinations:", pendingExams);
+        console.log("Completed Examinations:", completedExams);
         // Fetch lab test data
         const pendingTests = await labTestService.getAssignedTests(1, 100, TestStatus.PENDING);
         const completedTests = await labTestService.getAssignedTests(1, 100, TestStatus.COMPLETED);
+        console.log("Pending Lab Tests:", pendingTests);
+        console.log("Completed Lab Tests:", completedTests);
+        // Fetch recent test results with error handling
+        let recentResults: { data: TestResult[]; total: number } = { data: [], total: 0 };
+        try {
+          const testResults = await labTestService.getRecentTestResults(1, 5);
+          recentResults = testResults;
+        } catch (error) {
+          console.error('Failed to fetch recent test results:', error);
+        }
 
-        // Fetch recent test results
-        const recentResults = await labTestService.getRecentTestResults(1, 5);
-
-        // Fetch recent prescriptions
-        const recentPrescriptions = await prescriptionService.getPrescriptions(1, 5);
+        // Fetch recent prescriptions with error handling
+        let recentPrescriptions: { data: Prescription[]; total: number } = { data: [], total: 0 };
+        try {
+          const prescriptions = await prescriptionService.getPrescriptions(1, 5);
+          recentPrescriptions = prescriptions;
+        } catch (error) {
+          console.error('Failed to fetch recent prescriptions:', error);
+        }
 
         setStats({
-          totalPatients: patientData.total,
-          recentPatients: patientData.data,
-          pendingExaminations: pendingExams.total,
-          completedExaminations: completedExams.total,
-          pendingTests: pendingTests.total,
-          completedTests: completedTests.total,
-          recentExaminations: recentExams.data,
-          pendingLabTests: pendingTests.data.slice(0, 5),
-          recentTestResults: recentResults.data,
-          recentPrescriptions: recentPrescriptions.data,
+          totalPatients: patientData.total || 0,
+          recentPatients: patientData.data || [],
+          pendingExaminations: pendingExams.total || 0,
+          completedExaminations: completedExams.total || 0,
+          pendingTests: pendingTests.total || 0,
+          completedTests: completedTests.total || 0,
+          recentExaminations: recentExams.data || [],
+          pendingLabTests: (pendingTests.data || []).slice(0, 5),
+          recentTestResults: recentResults.data || [],
+          recentPrescriptions: recentPrescriptions.data || [],
         });
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
+        setStats({
+          totalPatients: 0,
+          recentPatients: [],
+          pendingExaminations: 0,
+          completedExaminations: 0,
+          pendingTests: 0,
+          completedTests: 0,
+          recentExaminations: [],
+          pendingLabTests: [],
+          recentTestResults: [],
+          recentPrescriptions: [],
+        });
       } finally {
         setIsLoading(false);
       }
@@ -383,7 +411,7 @@ const DashboardPage = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {stats.recentTestResults.map((result) => (
+              {(stats.recentTestResults || []).map((result) => (
                 <tr
                   key={result.id}
                   className="hover:bg-gray-50 cursor-pointer"
@@ -425,7 +453,7 @@ const DashboardPage = () => {
                   </td>
                 </tr>
               ))}
-              {stats.recentTestResults.length === 0 && (
+              {!stats.recentTestResults?.length && (
                 <tr>
                   <td
                     colSpan={4}
@@ -479,7 +507,7 @@ const DashboardPage = () => {
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="font-medium text-gray-900">
-                      {prescription.examination?.patient?.name || `Patient #${prescription.examinationId}`}
+                      {/* {prescription.examination?.patient?.name || `Patient #${prescription.examinationId}`} */}
                     </div>
                   </td>
                   <td className="px-6 py-4">

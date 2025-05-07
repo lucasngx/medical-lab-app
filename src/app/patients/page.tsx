@@ -24,25 +24,25 @@ const PatientsPage = () => {
     const fetchPatients = async () => {
       setIsLoading(true);
       try {
-        if (process.env.NODE_ENV === 'development') {
-          // Use mock data in development
-          const filteredPatients = searchTerm
-            ? mockPatients.filter(patient => 
-                patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                patient.phone.includes(searchTerm)
-              )
-            : mockPatients;
+        // if (process.env.NODE_ENV === 'development') {
+        //   // Use mock data in development
+        //   const filteredPatients = searchTerm
+        //     ? mockPatients.filter(patient => 
+        //         patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        //         patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        //         patient.phone.includes(searchTerm)
+        //       )
+        //     : mockPatients;
           
-          const start = (pagination.currentPage - 1) * pagination.itemsPerPage;
-          const end = start + pagination.itemsPerPage;
-          const paginatedPatients = filteredPatients.slice(start, end);
+        //   const start = (pagination.currentPage - 1) * pagination.itemsPerPage;
+        //   const end = start + pagination.itemsPerPage;
+        //   const paginatedPatients = filteredPatients.slice(start, end);
           
-          setPatients(paginatedPatients);
-          setTotalPatients(filteredPatients.length);
-          setIsLoading(false);
-          return;
-        }
+        //   setPatients(paginatedPatients);
+        //   setTotalPatients(filteredPatients.length);
+        //   setIsLoading(false);
+        //   return;
+        // }
 
         const params: Record<string, string | number> = {
           page: pagination.currentPage,

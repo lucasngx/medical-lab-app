@@ -12,7 +12,7 @@ const patientService = {
     page: number = 1,
     limit: number = 10
   ): Promise<PaginatedResponse<Patient>> => {
-    return api.get<PaginatedResponse<Patient>>("/patients");
+    return await api.get<PaginatedResponse<Patient>>("/patients", { page, limit });
   },
 
   /**
@@ -28,7 +28,8 @@ const patientService = {
   createPatient: async (
     patientData: Omit<Patient, "id" | "createdAt" | "updatedAt">
   ): Promise<Patient> => {
-    return api.post<Patient>("/patients", patientData);
+    console.log("Creating patient with data:", patientData);
+    return await api.post<Patient>("/patients", patientData);
   },
 
   /**

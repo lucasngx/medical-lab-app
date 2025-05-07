@@ -1,97 +1,35 @@
+import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import { ApiError } from "../types";
 
 // Base API URL - replace with your actual API URL
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
 
-interface FetchOptions extends RequestInit {
-  params?: Record<string, string | number | boolean>;
+// Create axios instance with default config
+const axiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+interface ErrorResponse {
+  message?: string;
 }
 
-/**
- * Build URL with query parameters
- */
-const buildUrl = (
-  endpoint: string,
-  params?: Record<string, string | number | boolean>
-): string => {
-  const url = new URL(`${API_BASE_URL}${endpoint}`);
-
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      url.searchParams.append(key, String(value));
-    });
+// Add response interceptor for error handling
+axiosInstance.interceptors.response.use(
+  response => response,
+  (error: AxiosError<ErrorResponse>) => {
+    const apiError: ApiError = {
+      message: error.response?.data?.message || error.message || 'Something went wrong',
+      statusCode: error.response?.status || 0
+    };
+    return Promise.reject(apiError);
   }
+);
 
-  return url.toString();
-};
-
-/**
- * Generic fetch wrapper with error handling
- */
-async function fetchAPI<T>(
-  endpoint: string,
-  options: FetchOptions = {}
-): Promise<T> {
-  try {
-    // Extract params from options and build URL
-    const { params, ...fetchOptions } = options;
-    const url = buildUrl(endpoint, params);
-
-
-    // Set up headers
-    const headers = new Headers(options.headers);
-
-    // Set content type if not already set
-    if (
-      !headers.has("Content-Type") &&
-      options.method &&
-      options.method !== "GET" &&
-      options.body
-    ) {
-      headers.set("Content-Type", "application/json");
-    }
-
- 
-
-    // Perform the fetch
-    const response = await fetch(url, {
-      ...fetchOptions,
-      headers,
-    });
-
-    // Parse the response
-    let data: any;
-
-    // Try to parse as JSON, fall back to text if that fails
-    const contentType = response.headers.get("content-type");
-    if (contentType && contentType.includes("application/json")) {
-      data = await response.json();
-    } else {
-      data = await response.text();
-    }
-
-    // Handle error responses
-    if (!response.ok) {
-      const error: ApiError = {
-        message: data.message || response.statusText || "Something went wrong",
-        statusCode: response.status,
-      };
-      throw error;
-    }
-
-    return data as T;
-  } catch (error: any) {
-    // Handle network errors
-    if (!error.statusCode) {
-      console.error("Network error:", error);
-      throw {
-        message: "Network error. Please check your connection.",
-        statusCode: 0,
-      } as ApiError;
-    }
-    throw error;
-  }
+interface RequestOptions extends Omit<AxiosRequestConfig, 'params'> {
+  params?: Record<string, string | number | boolean>;
 }
 
 /**
@@ -101,44 +39,35 @@ export const get = <T>(
   endpoint: string,
   params?: Record<string, string | number | boolean>
 ): Promise<T> => {
-  return fetchAPI<T>(endpoint, { method: "GET", params });
+  return axiosInstance.get<T>(endpoint, { params }).then(response => response.data);
 };
 
 /**
  * HTTP POST request
  */
 export const post = <T>(endpoint: string, data?: any): Promise<T> => {
-  return fetchAPI<T>(endpoint, {
-    method: "POST",
-    body: data ? JSON.stringify(data) : undefined,
-  });
+  return axiosInstance.post<T>(endpoint, data).then(response => response.data);
 };
 
 /**
  * HTTP PUT request
  */
 export const put = <T>(endpoint: string, data?: any): Promise<T> => {
-  return fetchAPI<T>(endpoint, {
-    method: "PUT",
-    body: data ? JSON.stringify(data) : undefined,
-  });
+  return axiosInstance.put<T>(endpoint, data).then(response => response.data);
 };
 
 /**
  * HTTP PATCH request
  */
 export const patch = <T>(endpoint: string, data?: any): Promise<T> => {
-  return fetchAPI<T>(endpoint, {
-    method: "PATCH",
-    body: data ? JSON.stringify(data) : undefined,
-  });
+  return axiosInstance.patch<T>(endpoint, data).then(response => response.data);
 };
 
 /**
  * HTTP DELETE request
  */
 export const del = <T>(endpoint: string): Promise<T> => {
-  return fetchAPI<T>(endpoint, { method: "DELETE" });
+  return axiosInstance.delete<T>(endpoint).then(response => response.data);
 };
 
 /**
@@ -168,11 +97,11 @@ export const uploadFiles = <T>(
     });
   }
 
-  return fetchAPI<T>(endpoint, {
-    method: "POST",
-    body: formData,
-    // Don't set Content-Type header, let the browser set it with the boundary
-  });
+  return axiosInstance.post<T>(endpoint, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  }).then(response => response.data);
 };
 
 export default {

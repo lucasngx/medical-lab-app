@@ -25,21 +25,21 @@ const ExaminationsPage = () => {
     const fetchExaminations = async () => {
       setIsLoading(true);
       try {
-        if (process.env.NODE_ENV === 'development') {
-          // Use mock data in development
-          const filteredExams = statusFilter
-            ? mockExaminations.filter(exam => exam.status === statusFilter)
-            : mockExaminations;
+        // if (process.env.NODE_ENV === 'development') {
+        //   // Use mock data in development
+        //   const filteredExams = statusFilter
+        //     ? mockExaminations.filter(exam => exam.status === statusFilter)
+        //     : mockExaminations;
           
-          const start = (pagination.currentPage - 1) * pagination.itemsPerPage;
-          const end = start + pagination.itemsPerPage;
-          const paginatedExams = filteredExams.slice(start, end);
+        //   const start = (pagination.currentPage - 1) * pagination.itemsPerPage;
+        //   const end = start + pagination.itemsPerPage;
+        //   const paginatedExams = filteredExams.slice(start, end);
           
-          setExaminations(paginatedExams);
-          setTotalExams(filteredExams.length);
-          setIsLoading(false);
-          return;
-        }
+        //   setExaminations(paginatedExams);
+        //   setTotalExams(filteredExams.length);
+        //   setIsLoading(false);
+        //   return;
+        // }
 
         const params: Record<string, string | number> = {
           page: pagination.currentPage,

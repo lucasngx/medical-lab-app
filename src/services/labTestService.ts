@@ -58,7 +58,7 @@ const labTestService = {
   getAssignedTests: async (
     page: number = 1,
     limit: number = 10,
-    status?: TestStatus
+    status: TestStatus = TestStatus.PENDING
   ): Promise<PaginatedResponse<AssignedTest>> => {
     const params: Record<string, string | number> = {
       page,
@@ -69,21 +69,21 @@ const labTestService = {
       params.status = status.toString();
     }
 
-    return api.get<PaginatedResponse<AssignedTest>>("/api/assigned-tests", params);
+    return api.get<PaginatedResponse<AssignedTest>>("/assigned-tests", params);
   },
 
   /**
    * Get assigned test by ID
    */
   getAssignedTestById: async (assignedTestId: number): Promise<AssignedTest> => {
-    return api.get<AssignedTest>(`/api/assigned-tests/${assignedTestId}`);
+    return api.get<AssignedTest>(`/assigned-tests/${assignedTestId}`);
   },
 
   /**
    * Get assigned tests for an examination
    */
   getAssignedTestsByExamination: async (examinationId: number): Promise<AssignedTest[]> => {
-    return api.get<AssignedTest[]>(`/api/assigned-tests/examination/${examinationId}`);
+    return api.get<AssignedTest[]>(`/assigned-tests/examination/${examinationId}`);
   },
 
   /**
@@ -94,7 +94,7 @@ const labTestService = {
     page: number = 1,
     limit: number = 10
   ): Promise<PaginatedResponse<AssignedTest>> => {
-    return api.get<PaginatedResponse<AssignedTest>>(`/api/assigned-tests/status/${status.toString()}`, {
+    return api.get<PaginatedResponse<AssignedTest>>(`/assigned-tests/status/${status.toString()}`, {
       page,
       limit,
     });
@@ -106,7 +106,7 @@ const labTestService = {
   createAssignedTest: async (
     assignedTestData: Omit<AssignedTest, "id" | "assignedDate" | "status">
   ): Promise<AssignedTest> => {
-    return api.post<AssignedTest>("/api/assigned-tests", assignedTestData);
+    return api.post<AssignedTest>("/assigned-tests", assignedTestData);
   },
 
   /**
@@ -116,7 +116,7 @@ const labTestService = {
     assignedTestId: number,
     status: TestStatus
   ): Promise<AssignedTest> => {
-    return api.patch<AssignedTest>(`/api/assigned-tests/${assignedTestId}/status`, {
+    return api.patch<AssignedTest>(`/assigned-tests/${assignedTestId}/status`, {
       status,
     });
   },

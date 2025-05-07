@@ -8,9 +8,9 @@ const examinationService = {
   getExaminations: async (
     page: number = 1,
     limit: number = 10,
-    status?: ExamStatus
+    status: ExamStatus = ExamStatus.PENDING
   ): Promise<PaginatedResponse<Examination>> => {
-    return api.get<PaginatedResponse<Examination>>("/api/examinations", {
+    return await api.get<PaginatedResponse<Examination>>("/examinations", {
       page,
       limit,
       status,
@@ -21,7 +21,7 @@ const examinationService = {
    * Get an examination by ID
    */
   getExaminationById: async (examinationId: number): Promise<Examination> => {
-    return api.get<Examination>(`/api/examinations/${examinationId}`);
+    return api.get<Examination>(`/examinations/${examinationId}`);
   },
 
   /**
@@ -32,7 +32,7 @@ const examinationService = {
     page: number = 1,
     limit: number = 10
   ): Promise<PaginatedResponse<Examination>> => {
-    return api.get<PaginatedResponse<Examination>>(`/api/examinations/patient/${patientId}`, {
+    return api.get<PaginatedResponse<Examination>>(`/examinations/patient/${patientId}`, {
       page,
       limit,
     });
@@ -46,7 +46,7 @@ const examinationService = {
     page: number = 1,
     limit: number = 10
   ): Promise<PaginatedResponse<Examination>> => {
-    return api.get<PaginatedResponse<Examination>>(`/api/examinations/doctor/${doctorId}`, {
+    return api.get<PaginatedResponse<Examination>>(`/examinations/doctor/${doctorId}`, {
       page,
       limit,
     });
@@ -60,7 +60,7 @@ const examinationService = {
     page: number = 1,
     limit: number = 10
   ): Promise<PaginatedResponse<Examination>> => {
-    return api.get<PaginatedResponse<Examination>>(`/api/examinations/status/${status}`, {
+    return api.get<PaginatedResponse<Examination>>(`/examinations/status/${status}`, {
       page,
       limit,
     });
@@ -72,7 +72,7 @@ const examinationService = {
   createExamination: async (
     examinationData: Omit<Examination, "id" | "createdAt" | "updatedAt">
   ): Promise<Examination> => {
-    return api.post<Examination>("/api/examinations", examinationData);
+    return api.post<Examination>("/examinations", examinationData);
   },
 
   /**
@@ -99,7 +99,7 @@ const examinationService = {
    * Get all tests assigned to an examination
    */
   getAssignedTests: async (examinationId: number): Promise<AssignedTest[]> => {
-    return api.get<AssignedTest[]>(`/api/examinations/${examinationId}/tests`);
+    return api.get<AssignedTest[]>(`/examinations/${examinationId}/tests`);
   },
 
   /**
@@ -109,7 +109,7 @@ const examinationService = {
     examinationId: number,
     labTestId: number
   ): Promise<AssignedTest> => {
-    return api.post<AssignedTest>(`/api/examinations/${examinationId}/tests`, {
+    return api.post<AssignedTest>(`/examinations/${examinationId}/tests`, {
       labTestId,
     });
   },
@@ -122,7 +122,7 @@ const examinationService = {
     labTestIds: number[]
   ): Promise<AssignedTest[]> => {
     return api.post<AssignedTest[]>(
-      `/api/examinations/${examinationId}/tests/batch`,
+      `/examinations/${examinationId}/tests/batch`,
       { labTestIds }
     );
   },
