@@ -85,9 +85,12 @@ export interface AssignedTest {
   examinationId: number;
   labTestId: number;
   status: TestStatus;
-  assignedDate: string;
+  assignedDate: string; // We keep this as string for frontend, it will be converted from Java Date
+  // Relations and frontend display fields
   labTest?: LabTest;
   result?: TestResult;
+  testName?: string;
+  patientName?: string;
 }
 
 export interface TestResult {

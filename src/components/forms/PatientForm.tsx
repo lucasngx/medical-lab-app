@@ -79,6 +79,7 @@ export default function PatientForm({
         router.push("/patients");
       }
     } catch (err: any) {
+      console.log(err);
       setError(err.message || "Failed to save patient");
     } finally {
       setIsLoading(false);

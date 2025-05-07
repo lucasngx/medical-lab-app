@@ -44,8 +44,11 @@ export default function ExaminationForm({
       try {
         const [patientsRes, doctorsRes] = await Promise.all([
           patientService.getPatients(1, 100),
-          api.get<Doctor[]>("/api/doctors"),
+          api.get<Doctor[]>("/doctors"),
         ]);
+
+        console.log("Patients:", patientsRes);
+        console.log("Doctors:", doctorsRes);
         
         if (patientsRes?.data) {
           setPatients(patientsRes.data);

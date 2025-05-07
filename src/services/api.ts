@@ -45,9 +45,31 @@ export const get = <T>(
 /**
  * HTTP POST request
  */
+// export const post = <T>(endpoint: string, data?: any): Promise<T> => {
+//   return axiosInstance.post<T>(endpoint, data).then(response => response.data);
+// };
 export const post = <T>(endpoint: string, data?: any): Promise<T> => {
-  return axiosInstance.post<T>(endpoint, data).then(response => response.data);
+  return axiosInstance
+    .post<T>(endpoint, data)
+    .then(response => response.data)
+    .catch(error => {
+      if (error.response) {
+        // Handle error response from backend (validation errors, etc.)
+        console.error("Backend validation errors:", error.response.data);
+        // You can throw an error or display the error messages to the user
+        // Here we are just logging them and throwing a general error
+        throw new Error(`Validation Error: ${JSON.stringify(error.response.data)}`);
+      } else if (error.request) {
+        // No response received from the backend
+        console.error("No response received:", error.request);
+      } else {
+        // Something else went wrong
+        console.error("General error:", error.message);
+      }
+      throw error; // Re-throw the error for further handling
+    });
 };
+
 
 /**
  * HTTP PUT request

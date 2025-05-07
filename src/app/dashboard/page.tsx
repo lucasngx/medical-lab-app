@@ -340,10 +340,10 @@ const DashboardPage = () => {
               {stats.pendingLabTests.map((test) => (
                 <tr key={test.id} className="hover:bg-gray-50 cursor-pointer">
                   <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                    {test.labTest?.name || "Unknown Test"}
+                    {test.testName || "Unknown Test"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    Patient #{test.examinationId}
+                    {test.patientName || "Unknown Patient"}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDateToLocale(test.assignedDate)}

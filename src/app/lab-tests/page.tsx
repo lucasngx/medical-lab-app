@@ -6,11 +6,14 @@ import { LabTest } from "@/types";
 import { usePagination } from "@/hooks/usePagination";
 import api from "@/services/api";
 import { mockLabTests } from "@/utils/mockData";
+import AssignTestModal from "@/components/examinations/AssignTestModal";
 
 const LabTestsPage = () => {
   const [labTests, setLabTests] = useState<LabTest[]>([]);
   const [totalTests, setTotalTests] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedTestId, setSelectedTestId] = useState<number | null>(null);
+  const [showAssignModal, setShowAssignModal] = useState(false);
   const router = useRouter();
 
   const pagination = usePagination({
@@ -23,18 +26,6 @@ const LabTestsPage = () => {
     const fetchLabTests = async () => {
       setIsLoading(true);
       try {
-        if (process.env.NODE_ENV === 'development') {
-          // Use mock data in development
-          const start = (pagination.currentPage - 1) * pagination.itemsPerPage;
-          const end = start + pagination.itemsPerPage;
-          const paginatedTests = mockLabTests.slice(start, end);
-          
-          setLabTests(paginatedTests);
-          setTotalTests(mockLabTests.length);
-          setIsLoading(false);
-          return;
-        }
-
         const response = await api.get<{ data: LabTest[]; total: number }>(
           "/lab-tests",
           {
@@ -42,6 +33,7 @@ const LabTestsPage = () => {
             limit: pagination.itemsPerPage,
           }
         );
+        console.log("Fetched lab tests:", response);
         setLabTests(response.data);
         setTotalTests(response.total);
       } catch (error) {
@@ -53,6 +45,22 @@ const LabTestsPage = () => {
 
     fetchLabTests();
   }, [pagination.currentPage, pagination.itemsPerPage]);
+
+  const handleAssignTest = async (labTestId: number, examinationId: number) => {
+    try {
+      console.log("Assigning tests:", labTestId, examinationId);
+      await api.post("/assigned-tests", {
+        examinationId,
+        labTestId,
+      });
+      
+    } catch (error) {
+      console.error("Failed to assign tests:", error);
+      
+    }
+    setShowAssignModal(false);
+    setSelectedTestId(null);
+  };
 
   if (isLoading) {
     return (
@@ -78,27 +86,37 @@ const LabTestsPage = () => {
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul role="list" className="divide-y divide-gray-200">
-          {labTests.map((test) => (
-            <li
-              key={test.id}
-              className="hover:bg-gray-50 cursor-pointer"
-              onClick={() => router.push(`/lab-tests/${test.id}`)}
-            >
+          {labTests && labTests.map((test) => (
+            <li key={test.id} className="hover:bg-gray-50">
               <div className="px-4 py-4 sm:px-6">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center">
-                    <div className="text-sm font-medium text-blue-600">
-                      {test.name}
+                  <div 
+                    className="flex-1 cursor-pointer"
+                    onClick={() => router.push(`/lab-tests/${test.id}`)}
+                  >
+                    <div className="flex items-center">
+                      <div className="text-sm font-medium text-blue-600">
+                        {test.name}
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <div className="text-sm text-gray-500">
+                        {test.description}
+                      </div>
+                      <div className="mt-2 text-sm text-gray-500">
+                        Unit: {test.unit} | Reference Range: {test.refRange.min} - {test.refRange.max}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="mt-2">
-                  <div className="text-sm text-gray-500">
-                    {test.description}
-                  </div>
-                  <div className="mt-2 text-sm text-gray-500">
-                    Unit: {test.unit} | Reference Range: {test.refRange.min} - {test.refRange.max}
-                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedTestId(test.id);
+                      setShowAssignModal(true);
+                    }}
+                    className="ml-4 px-3 py-1 text-sm border border-blue-600 text-blue-600 rounded hover:bg-blue-50"
+                  >
+                    Assign to Patient
+                  </button>
                 </div>
               </div>
             </li>
@@ -106,7 +124,6 @@ const LabTestsPage = () => {
         </ul>
       </div>
 
-      {/* Pagination */}
       {totalTests > pagination.itemsPerPage && (
         <div className="mt-4 flex justify-between">
           <button
@@ -135,6 +152,17 @@ const LabTestsPage = () => {
             Next
           </button>
         </div>
+      )}
+
+      {showAssignModal && selectedTestId && (
+        <AssignTestModal
+          preSelectedTestIds={[selectedTestId]}
+          onAssign={handleAssignTest}
+          onClose={() => {
+            setShowAssignModal(false);
+            setSelectedTestId(null);
+          }}
+        />
       )}
     </div>
   );
