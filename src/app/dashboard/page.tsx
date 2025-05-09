@@ -71,6 +71,7 @@ const DashboardPage = () => {
         try {
           const testResults = await labTestService.getRecentTestResults(1, 5);
           recentResults = testResults;
+          console.log("Recent Test Results:", recentResults);
         } catch (error) {
           console.error('Failed to fetch recent test results:', error);
         }

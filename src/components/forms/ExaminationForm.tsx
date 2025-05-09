@@ -9,6 +9,7 @@ import { Examination, ExamStatus, Patient, Doctor, Role } from "@/types";
 import examinationService from "@/services/examinationService";
 import patientService from "@/services/patientService";
 import api from "@/services/api";
+import doctorService from "@/services/doctorService";
 
 interface ExaminationFormProps {
   examinationId?: number;
@@ -44,7 +45,7 @@ export default function ExaminationForm({
       try {
         const [patientsRes, doctorsRes] = await Promise.all([
           patientService.getPatients(1, 100),
-          api.get<Doctor[]>("/doctors"),
+         doctorService.getDoctors(1, 100),
         ]);
 
         console.log("Patients:", patientsRes);
@@ -55,7 +56,7 @@ export default function ExaminationForm({
         }
         
         if (doctorsRes) {
-          setDoctors(doctorsRes);
+          setDoctors(doctorsRes.data);
         }
       } catch (err) {
         console.error("Error fetching data:", err);

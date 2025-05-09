@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Plus } from "lucide-react";
 import { TestResult, ResultStatus, Role } from "@/types";
 import { formatDateToLocale } from "@/utils/dateUtils";
 import { usePagination } from "@/hooks/usePagination";
 import api from "@/services/api";
 import { mockAssignedTests } from "@/utils/mockData";
+import labTestService from "@/services/labTestService";
 
 // Generate test results from assigned tests
 const mockTestResults: TestResult[] = mockAssignedTests.map((test, index) => ({
@@ -48,22 +51,6 @@ const TestResultsPage = () => {
     const fetchTestResults = async () => {
       setIsLoading(true);
       try {
-        if (process.env.NODE_ENV === 'development') {
-          // Use mock data in development
-          const filteredResults = statusFilter
-            ? mockTestResults.filter(result => result.status === statusFilter)
-            : mockTestResults;
-          
-          const start = (pagination.currentPage - 1) * pagination.itemsPerPage;
-          const end = start + pagination.itemsPerPage;
-          const paginatedResults = filteredResults.slice(start, end);
-          
-          setTestResults(paginatedResults);
-          setTotalResults(filteredResults.length);
-          setIsLoading(false);
-          return;
-        }
-
         const params: Record<string, string | number> = {
           page: pagination.currentPage,
           limit: pagination.itemsPerPage,
@@ -72,10 +59,9 @@ const TestResultsPage = () => {
           params.status = statusFilter;
         }
 
-        const response = await api.get<{ data: TestResult[]; total: number }>(
-          "/test-results",
-          params
-        );
+        const response = await labTestService.getRecentTestResults(1, 100);
+
+        console.log("Fetched test results:", response);
         setTestResults(response.data);
         setTotalResults(response.total);
       } catch (error) {
@@ -112,25 +98,39 @@ const TestResultsPage = () => {
       <div className="sm:flex sm:items-center sm:justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Test Results</h1>
         
-        <div className="mt-3 sm:mt-0 sm:ml-4">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as ResultStatus | "")}
-            className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+        <div className="mt-3 sm:mt-0 sm:flex sm:items-center sm:space-x-4">
+          <div className="w-48">
+            <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 mb-1">
+              Filter by Status
+            </label>
+            <select
+              id="status-filter"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as ResultStatus | "")}
+              className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+            >
+              <option value="">All Statuses</option>
+              {Object.values(ResultStatus).map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
+          </div>
+          
+          <Link
+            href="/test-results/new"
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            <option value="">All Statuses</option>
-            {Object.values(ResultStatus).map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
-            ))}
-          </select>
+            <Plus className="h-4 w-4 mr-2" />
+            New Test Result
+          </Link>
         </div>
       </div>
 
       <div className="bg-white shadow overflow-hidden sm:rounded-md">
         <ul role="list" className="divide-y divide-gray-200">
-          {testResults.map((result) => (
+          {testResults && testResults.map((result) => (
             <li
               key={result.id}
               className="hover:bg-gray-50 cursor-pointer"
