@@ -94,6 +94,7 @@ export interface AssignedTest {
 }
 
 export interface TestResult {
+  [x: string]: any;
   id: number;
   assignedTestId: number;
   technicianId: number;

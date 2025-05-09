@@ -129,6 +129,8 @@ export default function TestResultForm({
       const payload = {
         ...formData,
         resultDate: new Date(formData.resultDate || new Date()).toISOString(),
+         assignedTest: { id: Number(formData.assignedTestId) },
+        technician: { id: Number(formData.technicianId) },
       };
 
       console.log("Submitting test result:", payload);

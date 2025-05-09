@@ -398,10 +398,10 @@ const DashboardPage = () => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Result Details
+                  Test Information
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Value
+                  Result & Notes
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
@@ -418,39 +418,58 @@ const DashboardPage = () => {
                   className="hover:bg-gray-50 cursor-pointer"
                   onClick={() => router.push(`/test-results/${result.id}`)}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4">
                     <div className="font-medium text-gray-900">
-                      Test #{result.assignedTestId}
+                      {result.assignedTest?.labTest?.name || `Test #${result.assignedTest?.labTestId}`}
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      Patient: {result.assignedTest?.examination?.patient?.name || 'Unknown'}
                     </div>
                     {result.technician && (
                       <div className="text-sm text-gray-500">
-                        by {result.technician.name}
+                        Technician: {result.technician.name} ({result.technician.department})
                       </div>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {result.resultData}
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-gray-900">
+                      {result.resultData} ({result.assignedTest?.labTest?.unit})
+                    </div>
+                    <div className="text-xs text-gray-500 mt-1">
+                      Range: {result.assignedTest?.labTest?.refRange?.min} - {result.assignedTest?.labTest?.refRange?.max} ({result.assignedTest?.labTest?.unit})
+                    </div>
+                    {result.comment && (
+                      <div className="text-xs text-blue-600 mt-1">
+                        Note: {result.comment}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDateToLocale(result.resultDate)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        result.status === ResultStatus.REVIEWED
-                          ? "bg-green-100 text-green-800"
-                          : result.status === ResultStatus.SUBMITTED
-                          ? "bg-blue-100 text-blue-800"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}
-                    >
-                      {result.status}
-                    </span>
-                    {result.comment && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        {result.comment}
-                      </div>
-                    )}
+                    <div className="flex flex-col gap-2">
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          result.status === ResultStatus.REVIEWED
+                            ? "bg-green-100 text-green-800"
+                            : result.status === ResultStatus.SUBMITTED
+                            ? "bg-blue-100 text-blue-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {result.status}
+                      </span>
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          result.assignedTest?.examination?.status === "COMPLETED"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        Exam: {result.assignedTest?.examination?.status}
+                      </span>
+                    </div>
                   </td>
                 </tr>
               ))}
