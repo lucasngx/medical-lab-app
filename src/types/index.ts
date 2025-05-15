@@ -112,6 +112,8 @@ export interface Prescription {
   createdAt: string;
   notes: string;
   items?: PrescriptionItem[];
+  doctor?: Doctor;
+  patient?: Patient;
 }
 
 export interface Medication {

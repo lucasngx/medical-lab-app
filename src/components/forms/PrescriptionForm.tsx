@@ -57,7 +57,6 @@ export default function PrescriptionForm({
           examinationService.getExaminations(1, 100, ExamStatus.COMPLETED)
         ]);
         setExaminations([...inProgressExams.data, ...completedExams.data]);
-        console.log("Examinations data:", [...inProgressExams.data, ...completedExams.data]);
         // If we have an examination ID, load examination details
         if (examinationId) {
           const examinationData = await examinationService.getExaminationById(examinationId);
@@ -192,7 +191,6 @@ const handleSubmit = async (e: React.FormEvent) => {
     // Call the single createPrescription API
     const createdPrescription = await prescriptionService.createPrescription(prescriptionDTO);
 
-    console.log("Created prescription:", createdPrescription);
 
     if (onSuccess) {
       onSuccess();

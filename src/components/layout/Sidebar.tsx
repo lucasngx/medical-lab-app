@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/router";
 import Link from "next/link";
 import { useSelector } from "react-redux";
 import { RootState } from "@/store";
 import { Role } from "@/types";
 
 export default function Sidebar() {
-  const router = useRouter();
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
   const { user } = useSelector((state: RootState) => state.auth);
 
@@ -19,8 +17,11 @@ export default function Sidebar() {
     }));
   };
 
-  const isActive = (path: string) =>
-    router.pathname === path || router.pathname.startsWith(`${path}/`);
+  const isActive = (path: string) => {
+    // In App Router, we can check against window.location.pathname
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+    return currentPath === path || currentPath?.startsWith(`${path}/`);
+  };
 
   return (
     <aside className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
@@ -52,6 +53,58 @@ export default function Sidebar() {
               }`}
             >
               Dashboard
+            </Link>
+          </li>
+
+          <li>
+            <Link
+              href="/doctors"
+              className={`flex items-center px-3 py-2 rounded-md ${
+                isActive("/doctors")
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              Doctors
+            </Link>
+          </li>
+
+          <li>
+            <Link
+              href="/technicians"
+              className={`flex items-center px-3 py-2 rounded-md ${
+                isActive("/technicians")
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              Technicians
+            </Link>
+          </li>
+
+          <li>
+            <Link
+              href="/medications"
+              className={`flex items-center px-3 py-2 rounded-md ${
+                isActive("/medications")
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              Medications
+            </Link>
+          </li>
+
+          <li>
+            <Link
+              href="/test-results"
+              className={`flex items-center px-3 py-2 rounded-md ${
+                isActive("/test-results")
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              Test Results
             </Link>
           </li>
 

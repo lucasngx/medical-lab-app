@@ -4,11 +4,15 @@ import TechnicianList from '@/components/technicians/TechnicianList';
 
 export default function TechniciansPage() {
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">Technicians</h1>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Technicians</h1>
+        <p className="text-gray-600 mt-1">Manage lab technician records</p>
       </div>
-      <TechnicianList />
+
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <TechnicianList />
+      </div>
     </div>
   );
 }

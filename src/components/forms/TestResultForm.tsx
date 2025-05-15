@@ -133,7 +133,6 @@ export default function TestResultForm({
         technician: { id: Number(formData.technicianId) },
       };
 
-      console.log("Submitting test result:", payload);
 
       if (resultId) {
         await api.put(`/test-results/${resultId}`, payload);

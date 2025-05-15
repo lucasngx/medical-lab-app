@@ -48,8 +48,6 @@ export default function ExaminationForm({
          doctorService.getDoctors(1, 100),
         ]);
 
-        console.log("Patients:", patientsRes);
-        console.log("Doctors:", doctorsRes);
         
         if (patientsRes?.data) {
           setPatients(patientsRes.data);

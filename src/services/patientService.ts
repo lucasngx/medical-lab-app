@@ -28,7 +28,6 @@ const patientService = {
   createPatient: async (
     patientData: Omit<Patient, "id" | "createdAt" | "updatedAt">
   ): Promise<Patient> => {
-    console.log("Creating patient with data:", patientData);
     return await api.post<Patient>("/patients", patientData);
   },
 

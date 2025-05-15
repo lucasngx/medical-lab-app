@@ -52,26 +52,19 @@ const DashboardPage = () => {
       try {
         // Fetch patient data
         const patientData = await patientService.getPatients(1, 5);
-        console.log("Patient Data:", patientData.total);
 
         // Fetch examination data
         const pendingExams = await examinationService.getExaminations(1, 100, ExamStatus.PENDING);
         const completedExams = await examinationService.getExaminations(1, 100, ExamStatus.COMPLETED);
         const recentExams = await examinationService.getExaminations(1, 5);
-        console.log("Recent Examinations:", recentExams);
-        console.log("Pending Examinations:", pendingExams);
-        console.log("Completed Examinations:", completedExams);
         // Fetch lab test data
         const pendingTests = await labTestService.getAssignedTests(1, 100, TestStatus.PENDING);
         const completedTests = await labTestService.getAssignedTests(1, 100, TestStatus.COMPLETED);
-        console.log("Pending Lab Tests:", pendingTests);
-        console.log("Completed Lab Tests:", completedTests);
         // Fetch recent test results with error handling
         let recentResults: { data: TestResult[]; total: number } = { data: [], total: 0 };
         try {
           const testResults = await labTestService.getRecentTestResults(1, 5);
           recentResults = testResults;
-          console.log("Recent Test Results:", recentResults);
         } catch (error) {
           console.error('Failed to fetch recent test results:', error);
         }
@@ -80,7 +73,28 @@ const DashboardPage = () => {
         let recentPrescriptions: { data: Prescription[]; total: number } = { data: [], total: 0 };
         try {
           const prescriptions = await prescriptionService.getPrescriptions(1, 5);
-          recentPrescriptions = prescriptions;
+          // Fetch examination details for each prescription
+          const prescriptionsWithDetails = await Promise.all(
+            prescriptions.data.map(async (prescription) => {
+              if (prescription.examinationId) {
+                try {
+                  const examination = await examinationService.getExaminationById(prescription.examinationId);
+                  return {
+                    ...prescription,
+                    examination
+                  };
+                } catch (err) {
+                  console.error(`Failed to fetch examination for prescription ${prescription.id}:`, err);
+                  return prescription;
+                }
+              }
+              return prescription;
+            })
+          );
+          recentPrescriptions = {
+            ...prescriptions,
+            data: prescriptionsWithDetails
+          };
         } catch (error) {
           console.error('Failed to fetch recent prescriptions:', error);
         }
@@ -527,8 +541,13 @@ const DashboardPage = () => {
                 >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="font-medium text-gray-900">
-                      {/* {prescription.examination?.patient?.name || `Patient #${prescription.examinationId}`} */}
+                      {prescription.examination?.patient?.name || `Patient #${prescription.examinationId}`}
                     </div>
+                    {prescription.examination?.doctor && (
+                      <div className="text-sm text-gray-500">
+                        Dr. {prescription.examination.doctor.name}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-900 max-w-md overflow-hidden">

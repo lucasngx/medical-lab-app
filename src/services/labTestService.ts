@@ -32,7 +32,6 @@ const labTestService = {
    * Create a new lab test
    */
   createLabTest: async (labTestData: Omit<LabTest, "id">): Promise<LabTest> => {
-    console.log("Creating lab test with data:", labTestData);
     return api.post<LabTest>("/lab-tests", labTestData);
   },
 

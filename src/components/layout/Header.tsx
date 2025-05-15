@@ -1,15 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Bell, Search, Menu } from "lucide-react";
-import useAuth from "@/hooks/useAuth";
+import { Bell, Search, Menu, Home } from "lucide-react";
+import Link from "next/link";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
 }
 
 export default function Header({ onToggleSidebar }: HeaderProps) {
-  const { user } = useAuth();
   const [notifications, setNotifications] = useState([
     { id: 1, message: "New test result available", time: "2 minutes ago" },
     { id: 2, message: "Dr. Smith assigned a new test", time: "1 hour ago" },
@@ -27,6 +26,13 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
             >
               <Menu size={24} />
             </button>
+            <Link
+              href="/dashboard"
+              className="flex items-center p-2 text-gray-700 hover:text-blue-600 transition-colors mr-4"
+            >
+              <Home size={20} className="mr-1" />
+              <span className="font-medium">Dashboard</span>
+            </Link>
             <div className="ml-4 flex-1 flex items-center">
               <div className="max-w-lg w-full relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -83,19 +89,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
               )}
             </div>
 
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-full bg-blue-600 flex items-center justify-center text-white">
-                  {user?.name.charAt(0)}
-                </div>
-              </div>
-              <div className="ml-3">
-                <div className="text-sm font-medium text-gray-700">
-                  {user?.name}
-                </div>
-                <div className="text-xs text-gray-500">{user?.role}</div>
-              </div>
-            </div>
+          
           </div>
         </div>
       </div>
