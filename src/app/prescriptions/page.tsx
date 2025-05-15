@@ -24,17 +24,17 @@ const PrescriptionsPage = () => {
     const fetchPrescriptions = async () => {
       setIsLoading(true);
       try {
-        if (process.env.NODE_ENV === 'development') {
-          // Use mock data in development
-          const start = (pagination.currentPage - 1) * pagination.itemsPerPage;
-          const end = start + pagination.itemsPerPage;
-          const paginatedPrescriptions = mockPrescriptions.slice(start, end);
+        // if (process.env.NODE_ENV === 'development') {
+        //   // Use mock data in development
+        //   const start = (pagination.currentPage - 1) * pagination.itemsPerPage;
+        //   const end = start + pagination.itemsPerPage;
+        //   const paginatedPrescriptions = mockPrescriptions.slice(start, end);
           
-          setPrescriptions(paginatedPrescriptions);
-          setTotalPrescriptions(mockPrescriptions.length);
-          setIsLoading(false);
-          return;
-        }
+        //   setPrescriptions(paginatedPrescriptions);
+        //   setTotalPrescriptions(mockPrescriptions.length);
+        //   setIsLoading(false);
+        //   return;
+        // }
 
         const response = await api.get<{ data: Prescription[]; total: number }>(
           "/prescriptions",

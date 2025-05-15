@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Medication } from '@/types';
 import medicationService from '@/services/medicationService';
-import { useNotification } from '@/hooks/useNotification';
 
 interface MedicationFormProps {
   initialData?: Partial<Medication>;
@@ -13,7 +12,6 @@ interface MedicationFormProps {
 
 export default function MedicationForm({ initialData, onSuccess }: MedicationFormProps) {
   const router = useRouter();
-  const { addNotification } = useNotification();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [formData, setFormData] = useState<Partial<Medication>>({
@@ -40,18 +38,10 @@ export default function MedicationForm({ initialData, onSuccess }: MedicationFor
     try {
       if (initialData?.id) {
         await medicationService.updateMedication(initialData.id, formData);
-        addNotification({
-          type: 'success',
-          title: 'Success',
-          message: 'Medication updated successfully'
-        });
+       
       } else {
         await medicationService.createMedication(formData);
-        addNotification({
-          type: 'success',
-          title: 'Success',
-          message: 'Medication created successfully'
-        });
+       
       }
 
       if (onSuccess) {
@@ -61,11 +51,7 @@ export default function MedicationForm({ initialData, onSuccess }: MedicationFor
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save medication");
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'Failed to save medication'
-      });
+     
     } finally {
       setIsLoading(false);
     }

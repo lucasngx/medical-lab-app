@@ -1,5 +1,5 @@
 import api from "./api";
-import { Prescription, PaginatedResponse, Medication } from "@/types";
+import { Prescription, PaginatedResponse, Medication, PrescriptionItem } from "@/types";
 
 const prescriptionService = {
   /**
@@ -60,22 +60,23 @@ const prescriptionService = {
     prescriptionId: number
   ): Promise<PrescriptionItem[]> => {
     return api.get<PrescriptionItem[]>(
-      `/prescriptions/${prescriptionId}/items`
+      `/prescription-items/${prescriptionId}`
     );
   },
 
   /**
    * Add an item to a prescription
    */
-  addPrescriptionItem: async (
-    prescriptionId: number,
-    itemData: Omit<PrescriptionItem, "id" | "prescriptionId">
-  ): Promise<PrescriptionItem> => {
-    return api.post<PrescriptionItem>(
-      `/prescriptions/${prescriptionId}/items`,
-      itemData
-    );
-  },
+
+  createPrescriptionItem: async(data: {
+  prescriptionId: number;
+  medicationId: number;
+  dosage: string;
+  duration: string;
+  frequency: string;
+}): Promise<PrescriptionItem> =>{
+  return api.post<PrescriptionItem>("/prescription-items", data);
+},
 
   /**
    * Update a prescription item

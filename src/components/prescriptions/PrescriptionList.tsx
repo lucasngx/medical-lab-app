@@ -36,7 +36,7 @@ export default function PrescriptionList({
     }
   };
 
-  if (prescriptions.length === 0) {
+  if (prescriptions && prescriptions.length === 0) {
     return (
       <div className="text-center py-10">
         <p className="text-gray-500">No prescriptions found</p>
@@ -64,7 +64,7 @@ export default function PrescriptionList({
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {prescriptions.map((prescription) => (
+           {prescriptions && prescriptions.map((prescription) => (
             <tr
               key={prescription.id}
               className={`hover:bg-gray-50 ${

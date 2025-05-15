@@ -4,10 +4,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
-import { Prescription, PrescriptionItem, Medication, Examination } from "@/types";
+import { Prescription, PrescriptionItem, Medication, Examination, ExamStatus } from "@/types";
 import prescriptionService from "@/services/prescriptionService";
 import examinationService from "@/services/examinationService";
-import { useNotification } from "@/hooks/useNotification";
 import { v4 as uuidv4 } from 'uuid';
 
 interface PrescriptionFormProps {
@@ -22,12 +21,12 @@ export default function PrescriptionForm({
   onSuccess,
 }: PrescriptionFormProps) {
   const router = useRouter();
-  const { addNotification } = useNotification();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const [examinations, setExaminations] = useState<Examination[]>([]);
   const [examination, setExamination] = useState<Examination | null>(null);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -52,6 +51,13 @@ export default function PrescriptionForm({
         const medicationsResponse = await prescriptionService.getMedications(1, 100);
         setMedications(medicationsResponse.data);
 
+        // Load available examinations (both in progress and completed)
+        const [inProgressExams, completedExams] = await Promise.all([
+          examinationService.getExaminations(1, 100, ExamStatus.IN_PROGRESS),
+          examinationService.getExaminations(1, 100, ExamStatus.COMPLETED)
+        ]);
+        setExaminations([...inProgressExams.data, ...completedExams.data]);
+        console.log("Examinations data:", [...inProgressExams.data, ...completedExams.data]);
         // If we have an examination ID, load examination details
         if (examinationId) {
           const examinationData = await examinationService.getExaminationById(examinationId);
@@ -93,6 +99,17 @@ export default function PrescriptionForm({
     fetchData();
   }, [prescriptionId, examinationId]);
 
+  const handleExaminationChange = async (examinationId: number) => {
+    try {
+      const selectedExamination = await examinationService.getExaminationById(examinationId);
+      setExamination(selectedExamination);
+      setFormData(prev => ({ ...prev, examinationId }));
+    } catch (error) {
+      console.error("Failed to load examination details:", error);
+      setError("Failed to load examination details. Please try again.");
+    }
+  };
+
   const handlePrescriptionChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
@@ -129,96 +146,67 @@ export default function PrescriptionForm({
     setPrescriptionItems(prev => prev.filter(item => item.tempId !== tempId));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (!formData.examinationId) {
-      setError("No examination selected.");
-      return;
+  if (!formData.examinationId) {
+    setError("No examination selected.");
+    return;
+  }
+
+  if (!formData.diagnosis || prescriptionItems.length === 0) {
+    setError("Please provide a diagnosis and at least one medication.");
+    return;
+  }
+
+  // Check if all medication items have required fields
+  const incompleteItems = prescriptionItems.filter(
+    item => !item.medicationId || !item.dosage || !item.frequency
+  );
+
+  if (incompleteItems.length > 0) {
+    setError("Please complete all required medication fields (medication, dosage, and frequency).");
+    return;
+  }
+
+  setIsSaving(true);
+  setError("");
+
+  try {
+    // Map your prescriptionItems to the DTO format expected by backend
+    const items = prescriptionItems.map(item => ({
+      medicationId: item.medicationId!,
+      dosage: item.dosage!,
+      duration: item.duration || "",  // Provide default if optional
+      frequency: item.frequency!,
+    }));
+
+    // Build the full DTO for backend
+    const prescriptionDTO = {
+      examinationId: formData.examinationId!,
+      diagnosis: formData.diagnosis!,
+      notes: formData.notes || "",
+      prescriptionItems: items,
+    };
+
+    // Call the single createPrescription API
+    const createdPrescription = await prescriptionService.createPrescription(prescriptionDTO);
+
+    console.log("Created prescription:", createdPrescription);
+
+    if (onSuccess) {
+      onSuccess();
+    } else {
+      router.push(`/examinations/${formData.examinationId}`);
     }
+  } catch (error) {
+    console.error("Failed to save prescription:", error);
+    setError("Failed to save prescription. Please try again.");
+  } finally {
+    setIsSaving(false);
+  }
+};
 
-    if (!formData.diagnosis || prescriptionItems.length === 0) {
-      setError("Please provide a diagnosis and at least one medication.");
-      return;
-    }
-
-    // Check if all medication items have required fields
-    const incompleteItems = prescriptionItems.filter(
-      item => !item.medicationId || !item.dosage || !item.frequency
-    );
-
-    if (incompleteItems.length > 0) {
-      setError("Please complete all required medication fields (medication, dosage, and frequency).");
-      return;
-    }
-
-    setIsSaving(true);
-    setError("");
-
-    try {
-      let savedPrescription: Prescription;
-      
-      if (isEditing && prescriptionId) {
-        // Update existing prescription
-        savedPrescription = await prescriptionService.updatePrescription(
-          prescriptionId,
-          formData
-        );
-
-        // Handle prescription items
-        const existingItems = await prescriptionService.getPrescriptionItems(prescriptionId);
-        
-        // Remove existing items
-        for (const item of existingItems) {
-          await prescriptionService.removePrescriptionItem(prescriptionId, item.id);
-        }
-
-        // Add updated items
-        for (const item of prescriptionItems) {
-          await prescriptionService.addPrescriptionItem(prescriptionId, {
-            medicationId: item.medicationId!,
-            dosage: item.dosage!,
-            duration: item.duration!,
-            frequency: item.frequency!,
-          });
-        }
-      } else {
-        // Create new prescription
-        savedPrescription = await prescriptionService.createPrescription({
-          examinationId: formData.examinationId!,
-          diagnosis: formData.diagnosis!,
-          notes: formData.notes || "",
-        });
-
-        // Add prescription items
-        for (const item of prescriptionItems) {
-          await prescriptionService.addPrescriptionItem(savedPrescription.id, {
-            medicationId: item.medicationId!,
-            dosage: item.dosage!,
-            duration: item.duration!,
-            frequency: item.frequency!,
-          });
-        }
-      }
-
-      addNotification({
-        type: "success",
-        title: "Success",
-        message: `Prescription ${isEditing ? "updated" : "created"} successfully.`,
-      });
-
-      if (onSuccess) {
-        onSuccess();
-      } else {
-        router.push(`/examinations/${formData.examinationId}`);
-      }
-    } catch (error) {
-      console.error("Failed to save prescription:", error);
-      setError("Failed to save prescription. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -242,16 +230,42 @@ export default function PrescriptionForm({
         </div>
       )}
 
-      <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-        <h2 className="text-lg font-medium text-blue-800">
-          {examination ? `Examination #${examination.id}` : "Loading examination..."}
-        </h2>
-        {examination && (
+      {!examinationId && (
+        <div className="bg-white border border-gray-200 rounded-md p-4">
+          <label htmlFor="examinationId" className="block text-sm font-medium text-gray-700 mb-2">
+            Select Examination *
+          </label>
+          <select
+            id="examinationId"
+            value={formData.examinationId || ""}
+            onChange={(e) => handleExaminationChange(Number(e.target.value))}
+            required
+            className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          >
+            <option value="">Select an examination</option>
+              {examinations.map((exam) => (
+                <option key={exam.id} value={exam.id}>
+                  Examination #{exam.id} - {exam.patient?.name || `Patient #${exam.patientId}`} | 
+                  {new Date(exam.examDate).toLocaleDateString()} | 
+                  {exam.doctor?.name} ({exam.doctor?.specialization}) | 
+                  Status: {exam.status}
+                </option>
+              ))}
+
+          </select>
+        </div>
+      )}
+
+      {examination && (
+        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+          <h2 className="text-lg font-medium text-blue-800">
+            Examination #{examination.id}
+          </h2>
           <p className="mt-1 text-sm text-blue-600">
             Patient: {examination.patient?.name || `Patient #${examination.patientId}`}
           </p>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-6">
         <div>
