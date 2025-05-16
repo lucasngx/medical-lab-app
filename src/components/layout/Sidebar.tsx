@@ -1,115 +1,64 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { useSelector } from "react-redux";
-import { RootState } from "@/store";
-import { Role } from "@/types";
+import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { Role, User } from "@/types";
+import { authService } from "@/services/authService";
+import {
+  Home,
+  Users,
+  Stethoscope,
+  Clipboard,
+  TestTube,
+  FileText,
+  UserPlus,
+  Pill
+} from "lucide-react";
 
 export default function Sidebar() {
-  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
-  const { user } = useSelector((state: RootState) => state.auth);
+  const router = useRouter();
+  const [pathname, setPathname] = useState('');
+  const [user, setUser] = useState<User | null>(null);
 
-  const toggleMenu = (menu: string) => {
-    setExpandedMenus((prev) => ({
-      ...prev,
-      [menu]: !prev[menu],
-    }));
-  };
+  useEffect(() => {
+    // Get the current pathname
+    setPathname(window.location.pathname);
+    // Get the user information
+    setUser(authService.getCurrentUser());
+  }, []);
 
   const isActive = (path: string) => {
-    // In App Router, we can check against window.location.pathname
-    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
-    return currentPath === path || currentPath?.startsWith(`${path}/`);
+    return pathname === path || pathname.startsWith(`${path}/`);
   };
 
-  return (
-    <aside className="w-64 bg-white border-r border-gray-200 h-screen flex flex-col">
-      <div className="p-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-blue-600">Medical Lab System</h1>
-      </div>
+  const renderMenuItems = () => {
+    const menuItems = [];
 
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white">
-            {user?.name?.[0] || "U"}
-          </div>
-          <div>
-            <p className="font-medium text-gray-900">{user?.name || "User"}</p>
-            <p className="text-sm text-gray-500">{user?.role || "Loading..."}</p>
-          </div>
-        </div>
-      </div>
+    // Dashboard - available to all roles
+    menuItems.push(
+      <Link
+        key="dashboard"
+        href="/dashboard"
+        className={`flex items-center px-3 py-2 rounded-md ${
+          isActive("/dashboard")
+            ? "bg-blue-50 text-blue-700"
+            : "text-gray-700 hover:bg-gray-100"
+        }`}
+      >
+        <Home className="h-5 w-5 mr-3" />
+        Dashboard
+      </Link>
+    );
 
-      <nav className="flex-1 overflow-y-auto p-4">
-        <ul className="space-y-2">
-          <li>
+    // Role-specific menu items
+    if (user) {
+      switch (user.role) {
+        case Role.ADMIN:
+          menuItems.push(
+            // Admin has access to everything
             <Link
-              href="/dashboard"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/dashboard")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              Dashboard
-            </Link>
-          </li>
-
-          <li>
-            <Link
-              href="/doctors"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/doctors")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              Doctors
-            </Link>
-          </li>
-
-          <li>
-            <Link
-              href="/technicians"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/technicians")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              Technicians
-            </Link>
-          </li>
-
-          <li>
-            <Link
-              href="/medications"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/medications")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              Medications
-            </Link>
-          </li>
-
-          <li>
-            <Link
-              href="/test-results"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/test-results")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              Test Results
-            </Link>
-          </li>
-
-          <li>
-            <Link
+              key="patients"
               href="/patients"
               className={`flex items-center px-3 py-2 rounded-md ${
                 isActive("/patients")
@@ -117,12 +66,40 @@ export default function Sidebar() {
                   : "text-gray-700 hover:bg-gray-100"
               }`}
             >
+              <Users className="h-5 w-5 mr-3" />
               Patients
-            </Link>
-          </li>
-
-          <li>
+            </Link>,
             <Link
+              key="doctors"
+              href="/doctors"
+              className={`flex items-center px-3 py-2 rounded-md ${
+                isActive("/doctors")
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <Stethoscope className="h-5 w-5 mr-3" />
+              Doctors
+            </Link>,
+            <Link
+              key="technicians"
+              href="/technicians"
+              className={`flex items-center px-3 py-2 rounded-md ${
+                isActive("/technicians")
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <UserPlus className="h-5 w-5 mr-3" />
+              Technicians
+            </Link>
+          );
+          break;
+
+        case Role.DOCTOR:
+          menuItems.push(
+            <Link
+              key="examinations"
               href="/examinations"
               className={`flex items-center px-3 py-2 rounded-md ${
                 isActive("/examinations")
@@ -130,25 +107,11 @@ export default function Sidebar() {
                   : "text-gray-700 hover:bg-gray-100"
               }`}
             >
+              <Clipboard className="h-5 w-5 mr-3" />
               Examinations
-            </Link>
-          </li>
-
-          <li>
+            </Link>,
             <Link
-              href="/lab-tests"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/lab-tests")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              Lab Tests
-            </Link>
-          </li>
-
-          <li>
-            <Link
+              key="prescriptions"
               href="/prescriptions"
               className={`flex items-center px-3 py-2 rounded-md ${
                 isActive("/prescriptions")
@@ -156,11 +119,99 @@ export default function Sidebar() {
                   : "text-gray-700 hover:bg-gray-100"
               }`}
             >
+              <FileText className="h-5 w-5 mr-3" />
               Prescriptions
             </Link>
-          </li>
-        </ul>
-      </nav>
-    </aside>
+          );
+          break;
+
+        case Role.TECHNICIAN:
+          menuItems.push(
+            <Link
+              key="lab-tests"
+              href="/lab-tests"
+              className={`flex items-center px-3 py-2 rounded-md ${
+                isActive("/lab-tests")
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <TestTube className="h-5 w-5 mr-3" />
+              Lab Tests
+            </Link>,
+            <Link
+              key="test-results"
+              href="/test-results"
+              className={`flex items-center px-3 py-2 rounded-md ${
+                isActive("/test-results")
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <FileText className="h-5 w-5 mr-3" />
+              Test Results
+            </Link>
+          );
+          break;
+
+        case Role.RECEPTIONIST:
+          menuItems.push(
+            <Link
+              key="patients"
+              href="/patients"
+              className={`flex items-center px-3 py-2 rounded-md ${
+                isActive("/patients")
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <Users className="h-5 w-5 mr-3" />
+              Patients
+            </Link>,
+            <Link
+              key="examinations"
+              href="/examinations"
+              className={`flex items-center px-3 py-2 rounded-md ${
+                isActive("/examinations")
+                  ? "bg-blue-50 text-blue-700"
+                  : "text-gray-700 hover:bg-gray-100"
+              }`}
+            >
+              <Clipboard className="h-5 w-5 mr-3" />
+              Examinations
+            </Link>
+          );
+          break;
+      }
+
+      // Medications - available to admin and doctors
+      if ([Role.ADMIN, Role.DOCTOR].includes(user.role)) {
+        menuItems.push(
+          <Link
+            key="medications"
+            href="/medications"
+            className={`flex items-center px-3 py-2 rounded-md ${
+              isActive("/medications")
+                ? "bg-blue-50 text-blue-700"
+                : "text-gray-700 hover:bg-gray-100"
+            }`}
+          >
+            <Pill className="h-5 w-5 mr-3" />
+            Medications
+          </Link>
+        );
+      }
+    }
+
+    return menuItems;
+  };
+
+  return (
+    <div className="w-64 h-full bg-white border-r border-gray-200">
+      <div className="h-16 flex items-center px-6 border-b border-gray-200">
+        <span className="text-xl font-semibold text-gray-800">Medical Lab</span>
+      </div>
+      <nav className="mt-6 px-3 space-y-1">{renderMenuItems()}</nav>
+    </div>
   );
 }

@@ -12,6 +12,15 @@ const axiosInstance = axios.create({
   }
 });
 
+// Add authentication interceptor
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 interface ErrorResponse {
   message?: string;
 }

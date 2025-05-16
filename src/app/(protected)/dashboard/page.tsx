@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import patientService from "../../services/patientService";
-import examinationService from "../../services/examinationService";
-import labTestService from "../../services/labTestService";
-import prescriptionService from "../../services/prescriptionService"; // Import prescriptionService
-import { formatDateToLocale } from "../../utils/dateUtils";
+import patientService from "@/services/patientService";
+import examinationService from "@/services/examinationService";
+import labTestService from "@/services/labTestService";
+import prescriptionService from "@/services/prescriptionService";
+import { formatDateToLocale } from "@/utils/dateUtils";
 import {
   ExamStatus,
   TestStatus,
@@ -15,8 +15,8 @@ import {
   Examination,
   AssignedTest,
   TestResult,
-  Prescription, // Add Prescription type
-} from "../../types";
+  Prescription,
+} from "@/types";
 
 interface DashboardStats {
   totalPatients: number;

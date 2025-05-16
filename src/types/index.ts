@@ -18,9 +18,10 @@ export enum ResultStatus {
 }
 
 export enum Role {
+  ADMIN = "ADMIN",
   DOCTOR = "DOCTOR",
   TECHNICIAN = "TECHNICIAN",
-  ADMIN = "ADMIN",
+  RECEPTIONIST = "RECEPTIONIST",
 }
 
 export interface ReferenceRange {
@@ -114,6 +115,7 @@ export interface Prescription {
   items?: PrescriptionItem[];
   doctor?: Doctor;
   patient?: Patient;
+  examination?: Examination;
 }
 
 export interface Medication {
@@ -145,9 +147,25 @@ export interface ApiError {
   statusCode: number;
 }
 
-export interface User {
+export interface Organization {
   id: number;
   name: string;
+  address: string;
+  phone: string;
   email: string;
+}
+
+export interface LoginResponse {
+  user: User;
+  token: string;
+  organization: Organization;
+}
+
+export interface User {
+  id: number;
+  email: string;
+  name: string;
   role: Role;
+  organizationId: number;
+  organization?: Organization;
 }

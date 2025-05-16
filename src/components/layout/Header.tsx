@@ -1,19 +1,45 @@
 "use client";
 
-import { useState } from "react";
-import { Bell, Search, Menu, Home } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Bell, Search, Menu, Home, LogOut, User } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { authService } from "@/services/authService";
+import { User as UserType } from "@/types";
 
 interface HeaderProps {
   onToggleSidebar: () => void;
 }
 
 export default function Header({ onToggleSidebar }: HeaderProps) {
+  const router = useRouter();
   const [notifications, setNotifications] = useState([
     { id: 1, message: "New test result available", time: "2 minutes ago" },
     { id: 2, message: "Dr. Smith assigned a new test", time: "1 hour ago" },
   ]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [user, setUser] = useState<UserType | null>(null);
+  const [organization, setOrganization] = useState<UserType | null>(null);
+
+  useEffect(() => {
+    // Get user and organization data after component mounts (client-side)
+    setUser(authService.getCurrentUser());
+    setOrganization(authService.getOrganization());
+  }, []);
+
+  const handleLogout = () => {
+    // Clear auth data
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('auth_token');
+      window.localStorage.removeItem('user');
+      window.localStorage.removeItem('organization');
+    }
+    
+    // Navigate to login page
+    router.push('/login');
+    router.refresh(); // Force a refresh of the page
+  };
 
   return (
     <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
@@ -89,7 +115,31 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
               )}
             </div>
 
-          
+            <div className="relative">
+              <button
+                onClick={() => setShowDropdown(!showDropdown)}
+                className="flex items-center max-w-xs rounded-full bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                <div className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md">
+                  <User className="h-5 w-5 mr-2 text-gray-400" />
+                  <span>{user?.name || "User"}</span>
+                </div>
+              </button>
+
+              {showDropdown && (
+                <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+                  <div className="py-1">
+                    <button
+                      onClick={handleLogout}
+                      className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      <LogOut className="h-5 w-5 mr-2 text-gray-400" />
+                      Sign out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

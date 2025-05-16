@@ -4,12 +4,22 @@ import { useState } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 
+import { usePathname } from 'next/navigation';
+import { authService } from '@/services/authService';
+
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const pathname = usePathname();
+
+  // List of public paths that don't require authentication
+  const publicPaths = ['/login'];
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
+
+  // Check if current path is public
+  const isPublicPath = publicPaths.includes(pathname);
 
   return (
     <div className="flex h-screen">
