@@ -76,6 +76,20 @@ const examinationService = {
   },
 
   /**
+   * Create a new examination with assigned tests
+   */
+  createExaminationWithTests: async (
+    examinationData: Omit<Examination, "id" | "createdAt" | "updatedAt">,
+    testIds: number[]
+  ): Promise<Examination> => {
+    const data = {
+      ...examinationData,
+      assignedTests: testIds,
+    };
+    return api.post<Examination>("/examinations/with-tests", data);
+  },
+
+  /**
    * Update examination status
    */
   updateExaminationStatus: async (
@@ -109,7 +123,7 @@ const examinationService = {
     examinationId: number,
     labTestId: number
   ): Promise<AssignedTest> => {
-    return api.post<AssignedTest>(`/examinations/${examinationId}/tests`, {
+    return api.post<AssignedTest>(`/examinations/${examinationId}`, {
       labTestId,
     });
   },

@@ -4,12 +4,15 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useSelector } from "react-redux";
 import { ChevronDown, Plus } from "lucide-react";
-import { Examination, ExamStatus, Patient, Doctor, Role } from "@/types";
+import { Examination, ExamStatus, Patient, Doctor, Role, LabTest } from "@/types";
 import examinationService from "@/services/examinationService";
 import patientService from "@/services/patientService";
+import labTestService from "@/services/labTestService";
+import { RootState } from "@/store";
+import AssignTestModal from "@/components/examinations/AssignTestModal";
 import api from "@/services/api";
-import doctorService from "@/services/doctorService";
 
 interface ExaminationFormProps {
   examinationId?: number;
@@ -26,10 +29,23 @@ export default function ExaminationForm({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [patients, setPatients] = useState<Patient[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [labTests, setLabTests] = useState<LabTest[]>([]);
+  const [selectedTests, setSelectedTests] = useState<number[]>([]);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const user = useSelector((state: RootState) => state.auth.user);
+  // Using Dr. Robert Johnson's information
+  const hardcodedDoctor = {
+    id: 2,
+    email: "robert.johnson@example.com",
+    name: "Dr. Robert Johnson",
+    phone: "1987654321",
+    role: Role.DOCTOR,
+    specialization: "Cardiologist"
+  };
+
   const [formData, setFormData] = useState<Partial<Examination>>({
     patientId: patientId || 0,
-    doctorId: 0,
+    doctorId: hardcodedDoctor.id,
     examDate: new Date().toISOString().split("T")[0],
     symptoms: "",
     notes: "",
@@ -38,23 +54,22 @@ export default function ExaminationForm({
 
   const isEditing = !!examinationId;
 
-  // Fetch doctors and patients data
+  // Fetch patients and lab tests data
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [patientsRes, doctorsRes] = await Promise.all([
+        const [patientsRes, labTestsRes] = await Promise.all([
           patientService.getPatients(1, 100),
-         doctorService.getDoctors(1, 100),
+          labTestService.getLabTests(1, 100),
         ]);
-
         
         if (patientsRes?.data) {
           setPatients(patientsRes.data);
         }
         
-        if (doctorsRes) {
-          setDoctors(doctorsRes.data);
+        if (labTestsRes?.data) {
+          setLabTests(labTestsRes.data);
         }
       } catch (err) {
         console.error("Error fetching data:", err);
@@ -98,8 +113,8 @@ export default function ExaminationForm({
     let processedValue: any = value;
 
     // Handle numeric values
-    if (name === "patientId" || name === "doctorId") {
-      processedValue = parseInt(value, 10);
+    if (name === "patientId") {
+      processedValue = parseInt(value) || 0;
     }
 
     setFormData((prev) => ({
@@ -110,15 +125,47 @@ export default function ExaminationForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!formData.patientId) {
+      setError("Please select a patient");
+      return;
+    }
+
     setIsLoading(true);
     setError("");
 
     try {
+      let savedExamination: Examination;
+      let newExaminationId: number | undefined;
+
       if (isEditing && examinationId) {
-        await examinationService.updateExamination(examinationId, formData);
+        // Update existing examination
+        savedExamination = await examinationService.updateExamination(examinationId, formData);
+        newExaminationId = examinationId;
       } else {
-        await examinationService.createExamination(
-          formData as Omit<Examination, "id" | "createdAt" | "updatedAt">
+        // Create new examination using hardcoded doctor
+        savedExamination = await examinationService.createExamination({
+          patientId: formData.patientId!,
+          doctorId: hardcodedDoctor.id,
+          examDate: formData.examDate!,
+          symptoms: formData.symptoms!,
+          notes: formData.notes || "",
+          status: ExamStatus.PENDING,
+        });
+
+        newExaminationId = savedExamination.id;
+      }
+
+      // If we have selected tests, assign them to the examination
+      if (selectedTests.length > 0 && newExaminationId) {
+        await Promise.all(
+          selectedTests.map(async (testId) => {
+            // await examinationService.assignTest(newExaminationId, testId);
+            await api.post("/assigned-tests", {
+              examinationId: newExaminationId,
+              labTestId: testId,
+            });
+          })
         );
       }
 
@@ -127,14 +174,25 @@ export default function ExaminationForm({
       } else {
         router.push("/examinations");
       }
-    } catch (err: any) {
-      setError(err.message || "Failed to save examination");
+    } catch (err) {
+      console.error("Failed to save examination:", err);
+      setError("Failed to save examination. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  if (isLoading && isEditing) {
+  const handleTestChange = (testId: number) => {
+    setSelectedTests(prev => {
+      if (prev.includes(testId)) {
+        return prev.filter(id => id !== testId);
+      } else {
+        return [...prev, testId];
+      }
+    });
+  };
+
+  if (isLoading) {
     return (
       <div className="flex justify-center p-6">
         <div className="w-8 h-8 border-4 border-blue-400 border-t-blue-600 rounded-full animate-spin"></div>
@@ -145,185 +203,146 @@ export default function ExaminationForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-          {error}
+        <div className="bg-red-50 border-l-4 border-red-400 p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <svg
+                className="h-5 w-5 text-red-400"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm-.707-10.293a1 1 0 111.414-1.414l3 3a1 1 0 01-1.414 1.414L11 9.414V13a1 1 0 11-2 0V9.414l-1.293 1.293a1 1 0 01-1.414-1.414l3-3z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label
-            htmlFor="patientId"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Patient *
-          </label>
-          <div className="relative">
-            <select
-              id="patientId"
-              name="patientId"
-              required
-              value={formData.patientId || ""}
-              onChange={handleChange}
-              disabled={!!patientId}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-            >
-              <option value="">Select Patient</option>
-              {patients.map((patient) => (
-                <option key={patient.id} value={patient.id}>
-                  {patient.name} ({new Date(patient.dob).toLocaleDateString()})
-                </option>
-              ))}
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-              <ChevronDown size={16} className="text-gray-500" />
+      {/* Patient Selection */}
+      <div>
+        <label
+          htmlFor="patient"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Patient
+        </label>
+        <select
+          id="patient"
+          name="patientId"
+          value={formData.patientId || ""}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 bg-white py-2 pl-3 pr-10 text-base focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+          required
+        >
+          <option value="">Select a patient</option>
+          {patients.map((patient) => (
+            <option key={patient.id} value={patient.id}>
+              {patient.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Lab Tests Selection */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Lab Tests
+        </label>
+        <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-300 rounded-md p-3">
+          {labTests.map((test) => (
+            <div key={test.id} className="flex items-center">
+              <input
+                type="checkbox"
+                id={`test-${test.id}`}
+                checked={selectedTests.includes(test.id)}
+                onChange={() => handleTestChange(test.id)}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor={`test-${test.id}`} className="ml-2 block text-sm text-gray-900">
+                {test.name}
+              </label>
             </div>
-          </div>
-          {!patientId && (
-            <div className="mt-2">
-              <button
-                type="button"
-                onClick={() => router.push("/patients/new")}
-                className="text-sm text-blue-600 hover:text-blue-800 flex items-center"
-              >
-                <Plus size={14} className="mr-1" />
-                Add New Patient
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div>
-          <label
-            htmlFor="doctorId"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Doctor *
-          </label>
-          <div className="relative">
-            <select
-              id="doctorId"
-              name="doctorId"
-              required
-              value={formData.doctorId || ""}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-            >
-              <option value="">Select Doctor</option>
-              {doctors.map((doctor) => (
-                <option key={doctor.id} value={doctor.id}>
-                  {doctor.name} ({doctor.specialization})
-                </option>
-              ))}
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-              <ChevronDown size={16} className="text-gray-500" />
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <label
-            htmlFor="examDate"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Examination Date *
-          </label>
-          <input
-            type="date"
-            id="examDate"
-            name="examDate"
-            required
-            value={formData.examDate || ""}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor="status"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Status *
-          </label>
-          <div className="relative">
-            <select
-              id="status"
-              name="status"
-              required
-              value={formData.status || ""}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
-            >
-              <option value={ExamStatus.PENDING}>Pending</option>
-              <option value={ExamStatus.IN_PROGRESS}>In Progress</option>
-              <option value={ExamStatus.COMPLETED}>Completed</option>
-            </select>
-            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
-              <ChevronDown size={16} className="text-gray-500" />
-            </div>
-          </div>
-        </div>
-
-        <div className="md:col-span-2">
-          <label
-            htmlFor="symptoms"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Symptoms *
-          </label>
-          <textarea
-            id="symptoms"
-            name="symptoms"
-            required
-            rows={3}
-            value={formData.symptoms || ""}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Describe patient symptoms..."
-          />
-        </div>
-
-        <div className="md:col-span-2">
-          <label
-            htmlFor="notes"
-            className="block text-sm font-medium text-gray-700 mb-1"
-          >
-            Additional Notes
-          </label>
-          <textarea
-            id="notes"
-            name="notes"
-            rows={3}
-            value={formData.notes || ""}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Additional examination notes..."
-          />
+          ))}
         </div>
       </div>
 
-      <div className="flex justify-end space-x-3">
-        <button
-          type="button"
-          onClick={() => router.push("/examinations")}
-          className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+      <div>
+        <label
+          htmlFor="examDate"
+          className="block text-sm font-medium text-gray-700"
         >
-          Cancel
-        </button>
+          Examination Date
+        </label>
+        <input
+          type="date"
+          id="examDate"
+          name="examDate"
+          value={formData.examDate || ""}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+          required
+        />
+      </div>
+
+      <div>
+        <label
+          htmlFor="symptoms"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Symptoms
+        </label>
+        <textarea
+          id="symptoms"
+          name="symptoms"
+          rows={3}
+          value={formData.symptoms || ""}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+          required
+        />
+      </div>
+
+      <div>
+        <label
+          htmlFor="notes"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Notes
+        </label>
+        <textarea
+          id="notes"
+          name="notes"
+          rows={3}
+          value={formData.notes || ""}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+        />
+      </div>
+
+      <div className="flex justify-between">
         <button
           type="submit"
-          disabled={isLoading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+          className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
-          {isLoading
-            ? "Saving..."
-            : isEditing
-            ? "Update Examination"
-            : "Create Examination"}
+          {isLoading ? "Saving..." : isEditing ? "Update Examination" : "Create Examination"}
         </button>
       </div>
+
+      {showAssignModal && examinationId && (
+        <AssignTestModal
+          examinationId={examinationId}
+          onAssign={() => {}}
+          onClose={() => setShowAssignModal(false)}
+        />
+      )}
     </form>
   );
 }

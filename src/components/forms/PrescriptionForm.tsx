@@ -228,7 +228,7 @@ const handleSubmit = async (e: React.FormEvent) => {
         </div>
       )}
 
-      {!examinationId && (
+      {/* {!examinationId && (
         <div className="bg-white border border-gray-200 rounded-md p-4">
           <label htmlFor="examinationId" className="block text-sm font-medium text-gray-700 mb-2">
             Select Examination *
@@ -252,9 +252,9 @@ const handleSubmit = async (e: React.FormEvent) => {
 
           </select>
         </div>
-      )}
+      )} */}
 
-      {examination && (
+      {/* {examination && (
         <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
           <h2 className="text-lg font-medium text-blue-800">
             Examination #{examination.id}
@@ -263,7 +263,19 @@ const handleSubmit = async (e: React.FormEvent) => {
             Patient: {examination.patient?.name || `Patient #${examination.patientId}`}
           </p>
         </div>
-      )}
+      )} */}
+       <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+          <h2 className="text-lg font-medium text-blue-800"></h2>
+      {examinations.map((exam) => (
+                <option key={exam.id} value={exam.id}>
+                  Examination #{exam.id} - {exam.patient?.name || `Patient #${exam.patientId}`} | 
+                  {new Date(exam.examDate).toLocaleDateString()} | 
+                  {exam.doctor?.name} ({exam.doctor?.specialization}) | 
+                  Status: {exam.status}
+                </option>
+              ))}
+        </div>
+
 
       <div className="grid grid-cols-1 gap-6">
         <div>

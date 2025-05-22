@@ -24,10 +24,11 @@ const PrescriptionsPage = () => {
         const response = await api.get<{ data: Prescription[]; total: number }>(
           "/prescriptions",
           {
-            page: pagination.currentPage,
-            limit: pagination.itemsPerPage,
+            page: 1,
+            limit: 100,
           }
         );
+        console.log("Fetched 1:", response.data);
 
         // For each prescription, fetch associated examination details
         const prescriptionsWithDetails = await Promise.all(
@@ -44,6 +45,8 @@ const PrescriptionsPage = () => {
             return prescription;
           })
         );
+
+        console.log("Fetched prescriptions:", prescriptionsWithDetails);
 
         setPrescriptions(prescriptionsWithDetails);
         setTotalPrescriptions(response.total);

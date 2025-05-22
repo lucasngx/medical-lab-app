@@ -43,9 +43,31 @@ export default function TestResultForm({
           technicianService.getTechnicians(1, 100)
         ]);
         
-        setAvailableTests(testsResponse.data || []);
-        setTechnicians(techniciansResponse.data || []);
+        // setAvailableTests(testsResponse.data || []);
+        setAvailableTests([
+  {
+    id: 1,
+    assignedDate: "2025-05-16T11:21:23.428Z",
+    testName: "aaa",
+    status: "IN_PROGRESS",
+    labTestId: 2,
+    patientName: "qqew"
+  }
+]);
+
         
+        // setTechnicians(techniciansResponse.data || []);
+        setTechnicians([
+  {
+    id: 2,
+    department: "Radiology",
+    email: "emily.davis@hospital.org",
+    name: "Emily Davis",
+    phoneNumber: "19876543210",
+    role: "TECHNICIAN"
+  }
+]);
+
         if (assignedTestId) {
           const test = testsResponse.data?.find(t => t.id === assignedTestId);
           if (test) {
@@ -121,18 +143,33 @@ export default function TestResultForm({
       setError("Please select a test");
       return;
     }
+    setFormData({
+    assignedTestId: 1,
+    technicianId: 2,
+    resultData: "123",
+    resultDate: new Date().toISOString().split("T")[0],
+    status: ResultStatus.DRAFT,
+    comment: "Test run manually",
+  });
 
     setIsLoading(true);
     setError("");
 
     try {
-      const payload = {
-        ...formData,
-        resultDate: new Date(formData.resultDate || new Date()).toISOString(),
-         assignedTest: { id: Number(formData.assignedTestId) },
-        technician: { id: Number(formData.technicianId) },
-      };
-
+      // const payload = {
+      //   ...formData,
+      //   resultDate: new Date(formData.resultDate || new Date()).toISOString(),
+      //    assignedTest: { id: Number(formData.assignedTestId) },
+      //   technician: { id: Number(formData.technicianId) },
+      // };
+const payload = {
+      resultData: formData.resultData,
+      resultDate: new Date(formData.resultDate || new Date()).toISOString(),
+      status: formData.status,
+      comment: formData.comment,
+      assignedTest: { id: 1 }, 
+      technician: { id: 2 },  
+    };
 
       if (resultId) {
         await api.put(`/test-results/${resultId}`, payload);
@@ -170,7 +207,23 @@ export default function TestResultForm({
         </div>
       )}
 
-      {!assignedTestId && (
+       <div className="relative mb-4 bg-gray rounded-md shadow-sm p-4 ">
+              {availableTests.map((test) => (
+                <option key={test.id} value={test.id}>
+                {`${test.testName || `Test #${test.labTestId}`} - ${test.patientName || 'Unknown'} - ${test.status} - ${new Date(test.assignedDate).toLocaleDateString()}`}
+              </option>              
+              ))}
+          </div>
+          <div className="relative mb-4 bg-gray rounded-md shadow-sm p-4 ">
+              {technicians.map((technician) => (
+                <option key={technician.id} value={technician.id}>
+                  {technician.name} - {technician.department}
+                </option>
+              ))}
+          </div>
+     
+
+      {/* {!assignedTestId && (
         <div>
           <label htmlFor="assignedTestId" className="block text-sm font-medium text-gray-700 mb-1">
             Select Test *
@@ -200,9 +253,9 @@ export default function TestResultForm({
             <p className="mt-2 text-sm text-gray-500">No pending tests available</p>
           )}
         </div>
-      )}
+      )} */}
 
-      {selectedTest?.labTest && (
+      {/* {selectedTest?.labTest && (
         <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
           <h3 className="text-sm font-medium text-blue-800">Test Information</h3>
           <dl className="mt-2 text-sm">
@@ -228,11 +281,11 @@ export default function TestResultForm({
             )}
           </dl>
         </div>
-      )}
+      )} */}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label htmlFor="technicianId" className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="md:col-span-2">
+          {/* <label htmlFor="technicianId" className="block text-sm font-medium text-gray-700 mb-1">
             Technician *
           </label>
           <div className="relative">
@@ -244,20 +297,20 @@ export default function TestResultForm({
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none"
             >
-              <option value="">Select a technician...</option>
-              {technicians.map((technician) => (
+              <option value="">Select a technician...</option> */}
+              {/* {technicians.map((technician) => (
                 <option key={technician.id} value={technician.id}>
                   {technician.name} - {technician.department}
                 </option>
-              ))}
-            </select>
+              ))} */}
+            {/* </select>
             <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
               <ChevronDown size={16} className="text-gray-500" />
             </div>
-          </div>
+          </div> */}
         </div>
 
-        <div>
+        <div className="md:col-span-2">
           <label htmlFor="resultDate" className="block text-sm font-medium text-gray-700 mb-1">
             Result Date *
           </label>
@@ -273,7 +326,7 @@ export default function TestResultForm({
           />
         </div>
 
-        <div>
+        <div className="md:col-span-2">
           <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
             Status *
           </label>
