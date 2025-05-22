@@ -14,9 +14,16 @@ const axiosInstance = axios.create({
 
 // Add authentication interceptor
 axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('auth-storage');
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    try {
+      const parsedToken = JSON.parse(token);
+      if (parsedToken.state?.token) {
+        config.headers.Authorization = `Bearer ${parsedToken.state.token}`;
+      }
+    } catch (error) {
+      console.error('Error parsing auth token:', error);
+    }
   }
   return config;
 });
@@ -135,11 +142,26 @@ export const uploadFiles = <T>(
   }).then(response => response.data);
 };
 
-export default {
-  get,
-  post,
-  put,
-  patch,
-  delete: del,
-  uploadFiles,
+export const authApi = {
+  login: async (email: string, password: string) => {
+    const response = await axiosInstance.post('/auth/login', { email, password });
+    return response.data;
+  },
+  logout: async () => {
+    const response = await axiosInstance.post('/auth/logout');
+    return response.data;
+  },
+  getCurrentUser: async () => {
+    const response = await axiosInstance.get('/auth/me');
+    return response.data;
+  },
 };
+
+export const dashboardApi = {
+  getStats: async () => {
+    const response = await axiosInstance.get('/dashboard/stats');
+    return response.data;
+  },
+};
+
+export default axiosInstance;

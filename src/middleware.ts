@@ -2,33 +2,25 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
-  // Get the pathname
-  const path = request.nextUrl.pathname;
+  const token = request.cookies.get('auth-storage')?.value;
+  const isAuthPage = request.nextUrl.pathname === '/login';
 
-  // Check if this is a protected route
-  const isProtectedRoute = !path.includes('/login');
-    // Development bypass - allow all routes
-  if (path === '/login') {
-    return NextResponse.next();
+  if (!token && !isAuthPage) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
-  return NextResponse.next();
+
+  if (token && isAuthPage) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  if (request.nextUrl.pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
 
   return NextResponse.next();
 }
 
 // Configure which routes to run middleware on
 export const config = {
-  matcher: [
-    // Add routes that should be protected
-    '/dashboard/:path*',
-    '/patients/:path*',
-    '/doctors/:path*',
-    '/examinations/:path*',
-    '/prescriptions/:path*',
-    '/lab-tests/:path*',
-    '/test-results/:path*',
-    '/medications/:path*',
-    '/technicians/:path*',
-    '/login'
-  ],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };
