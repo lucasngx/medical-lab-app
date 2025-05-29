@@ -14,16 +14,9 @@ const axiosInstance = axios.create({
 
 // Add authentication interceptor
 axiosInstance.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth-storage');
+  const token = localStorage.getItem('auth_token');
   if (token) {
-    try {
-      const parsedToken = JSON.parse(token);
-      if (parsedToken.state?.token) {
-        config.headers.Authorization = `Bearer ${parsedToken.state.token}`;
-      }
-    } catch (error) {
-      console.error('Error parsing auth token:', error);
-    }
+    config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });

@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      target: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:8080  # Changed to use localhost for local development
+    command: yarn dev
+    networks:
+      - medical-network
+
+  backend:
+    build:
+      context: ./backend  # You'll need to create this directory
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+    networks:
+      - medical-network
+
+networks:
+  medical-network:
+    external: true  # Use the external network

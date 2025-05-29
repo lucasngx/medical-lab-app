@@ -1,89 +1,131 @@
-import api from "./api";
+import { api } from "@/config/api";
 import {
   LabTest,
   AssignedTest,
   TestResult,
   TestStatus,
   PaginatedResponse,
-} from "../types";
+} from "@/types";
 
-/**
- * Service for lab test-related API operations
- */
 const labTestService = {
   /**
    * Get a paginated list of lab tests
    */
   getLabTests: async (
-    page: number = 1,
-    limit: number = 10
+    page: number = 0,
+    size: number = 10
   ): Promise<PaginatedResponse<LabTest>> => {
-    return api.get<PaginatedResponse<LabTest>>("/lab-tests", { page, limit });
+    const response = await api.get<PaginatedResponse<LabTest>>(
+      "/api/lab-tests",
+      {
+        params: { page, size },
+      }
+    );
+    return response.data;
   },
 
   /**
    * Get a lab test by ID
    */
-  getLabTestById: async (labTestId: number): Promise<LabTest> => {
-    return api.get<LabTest>(`/lab-tests/${labTestId}`);
+  getLabTestById: async (id: number): Promise<LabTest> => {
+    const response = await api.get<LabTest>(`/api/lab-tests/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Get lab tests by patient ID
+   */
+  getLabTestsByPatient: async (patientId: number): Promise<LabTest[]> => {
+    const response = await api.get<LabTest[]>(
+      `/api/lab-tests/patient/${patientId}`
+    );
+    return response.data;
   },
 
   /**
    * Create a new lab test
    */
-  createLabTest: async (labTestData: Omit<LabTest, "id">): Promise<LabTest> => {
-    return api.post<LabTest>("/lab-tests", labTestData);
+  createLabTest: async (labTest: Omit<LabTest, "id">): Promise<LabTest> => {
+    const response = await api.post<LabTest>("/api/lab-tests", labTest);
+    return response.data;
   },
 
   /**
-   * Update an existing lab test
+   * Update a lab test
    */
   updateLabTest: async (
-    labTestId: number,
-    labTestData: Partial<LabTest>
+    id: number,
+    labTest: Partial<LabTest>
   ): Promise<LabTest> => {
-    return api.put<LabTest>(`/lab-tests/${labTestId}`, labTestData);
+    const response = await api.put<LabTest>(`/api/lab-tests/${id}`, labTest);
+    return response.data;
   },
 
   /**
    * Delete a lab test
    */
-  deleteLabTest: async (labTestId: number): Promise<void> => {
-    return api.delete(`/lab-tests/${labTestId}`);
+  deleteLabTest: async (id: number): Promise<void> => {
+    await api.delete(`/api/lab-tests/${id}`);
   },
 
   /**
    * Get a paginated list of assigned tests
    */
   getAssignedTests: async (
-    page: number = 1,
-    limit: number = 10,
-    status: TestStatus = TestStatus.PENDING
+    page: number = 0,
+    size: number = 10
   ): Promise<PaginatedResponse<AssignedTest>> => {
-    const params: Record<string, string | number> = {
-      page,
-      limit,
-    };
-    
-    if (status) {
-      params.status = status.toString();
-    }
-
-    return api.get<PaginatedResponse<AssignedTest>>("/assigned-tests", params);
+    const response = await api.get<PaginatedResponse<AssignedTest>>(
+      "/api/assigned-tests",
+      {
+        params: { page, size },
+      }
+    );
+    return response.data;
   },
 
   /**
-   * Get assigned test by ID
+   * Get an assigned test by ID
    */
-  getAssignedTestById: async (assignedTestId: number): Promise<AssignedTest> => {
-    return api.get<AssignedTest>(`/assigned-tests/${assignedTestId}`);
+  getAssignedTestById: async (id: number): Promise<AssignedTest> => {
+    const response = await api.get<AssignedTest>(`/api/assigned-tests/${id}`);
+    return response.data;
   },
 
   /**
-   * Get assigned tests for an examination
+   * Get assigned tests by patient ID
    */
-  getAssignedTestsByExamination: async (examinationId: number): Promise<AssignedTest[]> => {
-    return api.get<AssignedTest[]>(`/assigned-tests/examination/${examinationId}`);
+  getAssignedTestsByPatient: async (
+    patientId: number
+  ): Promise<AssignedTest[]> => {
+    const response = await api.get<AssignedTest[]>(
+      `/api/assigned-tests/patient/${patientId}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Get assigned tests by technician ID
+   */
+  getAssignedTestsByTechnician: async (
+    technicianId: number
+  ): Promise<AssignedTest[]> => {
+    const response = await api.get<AssignedTest[]>(
+      `/api/assigned-tests/technician/${technicianId}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Get assigned tests by examination ID
+   */
+  getAssignedTestsByExamination: async (
+    examinationId: number
+  ): Promise<AssignedTest[]> => {
+    const response = await api.get<AssignedTest[]>(
+      `/api/assigned-tests/examination/${examinationId}`
+    );
+    return response.data;
   },
 
   /**
@@ -91,111 +133,210 @@ const labTestService = {
    */
   getAssignedTestsByStatus: async (
     status: TestStatus,
-    page: number = 1,
+    page: number = 0,
     limit: number = 10
   ): Promise<PaginatedResponse<AssignedTest>> => {
-    return api.get<PaginatedResponse<AssignedTest>>(`/assigned-tests/status/${status.toString()}`, {
-      page,
-      limit,
-    });
+    const response = await api.get<PaginatedResponse<AssignedTest>>(
+      "/api/assigned-tests/status",
+      {
+        params: { status, page, limit },
+      }
+    );
+    return response.data;
   },
 
   /**
-   * Create a new assigned test
+   * Search assigned tests
+   */
+  searchAssignedTests: async (params: {
+    searchTerm?: string;
+    status?: TestStatus;
+    page?: number;
+    size?: number;
+  }): Promise<PaginatedResponse<AssignedTest>> => {
+    const response = await api.get<PaginatedResponse<AssignedTest>>(
+      "/api/assigned-tests/search",
+      {
+        params,
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Create an assigned test
    */
   createAssignedTest: async (
-    assignedTestData: Omit<AssignedTest, "id" | "assignedDate" | "status">
+    assignedTest: Omit<AssignedTest, "id">
   ): Promise<AssignedTest> => {
-    return api.post<AssignedTest>("/assigned-tests", assignedTestData);
+    const response = await api.post<AssignedTest>(
+      "/api/assigned-tests",
+      assignedTest
+    );
+    return response.data;
+  },
+
+  /**
+   * Assign tests to technicians
+   */
+  assignTests: async (data: {
+    testIds: number[];
+    technicianId: number;
+  }): Promise<AssignedTest[]> => {
+    const response = await api.post<AssignedTest[]>(
+      "/api/assigned-tests/assign",
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Update an assigned test
+   */
+  updateAssignedTest: async (
+    id: number,
+    assignedTest: Partial<AssignedTest>
+  ): Promise<AssignedTest> => {
+    const response = await api.put<AssignedTest>(
+      `/api/assigned-tests/${id}`,
+      assignedTest
+    );
+    return response.data;
   },
 
   /**
    * Update assigned test status
    */
   updateAssignedTestStatus: async (
-    assignedTestId: number,
+    id: number,
     status: TestStatus
   ): Promise<AssignedTest> => {
-    return api.patch<AssignedTest>(`/assigned-tests/${assignedTestId}/status`, {
-      status,
-    });
-  },
-
-  /**
-   * Get test result for an assigned test
-   */
-  getTestResult: async (assignedTestId: number): Promise<TestResult | null> => {
-    return api.get<TestResult | null>(
-      `/assigned-tests/${assignedTestId}/result`
+    const response = await api.put<AssignedTest>(
+      `/api/assigned-tests/${id}/status`,
+      null,
+      {
+        params: { status },
+      }
     );
+    return response.data;
   },
 
   /**
-   * Create or update test result
+   * Delete an assigned test
    */
-  saveTestResult: async (
-    assignedTestId: number,
-    resultData: Omit<TestResult, "id" | "assignedTestId" | "resultDate">
-  ): Promise<TestResult> => {
-    return api.post<TestResult>(
-      `/assigned-tests/${assignedTestId}/result`,
-      resultData
+  deleteAssignedTest: async (id: number): Promise<void> => {
+    await api.delete(`/api/assigned-tests/${id}`);
+  },
+
+  /**
+   * Get test results with pagination and sorting
+   */
+  getTestResults: async (params: {
+    page?: number;
+    size?: number;
+    sortBy?: string;
+    direction?: "asc" | "desc";
+  }): Promise<PaginatedResponse<TestResult>> => {
+    const response = await api.get<PaginatedResponse<TestResult>>(
+      "/api/test-results",
+      {
+        params,
+      }
     );
+    return response.data;
   },
 
   /**
-   * Get assigned tests for a technician
+   * Get a test result by ID
    */
-  getAssignedTestsByTechnician: async (
-    technicianId: number,
-    page: number = 1,
-    limit: number = 10,
-    status?: TestStatus
-  ): Promise<PaginatedResponse<AssignedTest>> => {
-    const params: Record<string, string | number> = {
-      technicianId,
-      page,
-      limit,
-    };
-    
-    if (status) {
-      params.status = status.toString();
-    }
-
-    return api.get<PaginatedResponse<AssignedTest>>("/assigned-tests", params);
+  getTestResultById: async (id: number): Promise<TestResult> => {
+    const response = await api.get<TestResult>(`/api/test-results/${id}`);
+    return response.data;
   },
 
   /**
-   * Assign a technician to a test
+   * Get test results by technician
    */
-  assignTechnician: async (
-    assignedTestId: number,
+  getTestResultsByTechnician: async (
     technicianId: number
-  ): Promise<AssignedTest> => {
-    return api.patch<AssignedTest>(
-      `/assigned-tests/${assignedTestId}/technician`,
-      { technicianId }
+  ): Promise<TestResult[]> => {
+    const response = await api.get<TestResult[]>(
+      `/api/test-results/technician/${technicianId}`
     );
+    return response.data;
   },
 
   /**
-   * Get test results for a patient
+   * Get test results by status
    */
-  getPatientTestResults: async (patientId: number): Promise<TestResult[]> => {
-    return api.get<TestResult[]>(`/patients/${patientId}/test-results`);
-  },
-
-  /**
-   * Get recent test results with pagination
-   */
-  getRecentTestResults: async (
-    page: number = 1,
-    limit: number = 10
-  ) => {
-    return api.get<PaginatedResponse<TestResult>>("/test-results", {
-      page,
-      limit,
+  getTestResultsByStatus: async (status: TestStatus): Promise<TestResult[]> => {
+    const response = await api.get<TestResult[]>("/api/test-results/status", {
+      params: { status },
     });
+    return response.data;
+  },
+
+  /**
+   * Get test results by assigned test
+   */
+  getTestResultsByAssignedTest: async (
+    assignedTestId: number
+  ): Promise<TestResult[]> => {
+    const response = await api.get<TestResult[]>(
+      `/api/test-results/assigned-test/${assignedTestId}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Create a test result
+   */
+  createTestResult: async (
+    testResult: Omit<TestResult, "id">
+  ): Promise<TestResult> => {
+    const response = await api.post<TestResult>(
+      "/api/test-results",
+      testResult
+    );
+    return response.data;
+  },
+
+  /**
+   * Update a test result
+   */
+  updateTestResult: async (
+    id: number,
+    testResult: Partial<TestResult>
+  ): Promise<TestResult> => {
+    const response = await api.put<TestResult>(
+      `/api/test-results/${id}`,
+      testResult
+    );
+    return response.data;
+  },
+
+  /**
+   * Update test result status
+   */
+  updateTestResultStatus: async (
+    id: number,
+    status: TestStatus
+  ): Promise<TestResult> => {
+    const response = await api.put<TestResult>(
+      `/api/test-results/${id}/status`,
+      null,
+      {
+        params: { status },
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Delete a test result
+   */
+  deleteTestResult: async (id: number): Promise<void> => {
+    await api.delete(`/api/test-results/${id}`);
   },
 };
 

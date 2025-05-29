@@ -1,55 +1,63 @@
-import api from './api';
-import { LoginResponse, User, Role } from '@/types';
+import api from "./api";
+import { Role } from "@/types";
+
+interface AuthResponse {
+  token: string;
+  email: string;
+  role: Role;
+}
 
 class AuthService {
-  private readonly TOKEN_KEY = 'auth_token';
-  private readonly USER_KEY = 'user';
-  private readonly ORG_KEY = 'organization';
+  private readonly TOKEN_KEY = "auth_token";
+  private readonly USER_KEY = "user";
+  private readonly isClient = typeof window !== "undefined";
 
-  private isClient = typeof window !== 'undefined';  async login(email: string, password: string): Promise<LoginResponse> {
-    // Auto-login bypass - accept any credentials
-    const devResponse: LoginResponse = {
-      token: 'auto-auth-token-' + new Date().getTime(),
-      user: {
-        id: 1,
-        name: email.split('@')[0], // Use the email username as the display name
-        email: email,
-        role: Role.ADMIN,
-        organizationId: 1
-      },
-      organization: {
-        id: 1,
-        name: 'Test Hospital',
-        address: '123 Medical Drive',
-        phone: '555-0123',
-        email: 'admin@hospital.com'
+  async login(email: string, password: string): Promise<AuthResponse> {
+    try {
+      const response = await api.post<AuthResponse>("/api/auth/login", {
+        email,
+        password,
+      });
+
+      if (!this.isClient) {
+        return response.data;
       }
-    };
 
-    if (this.isClient) {
-      // Set both localStorage and cookies
-      window.localStorage.setItem(this.TOKEN_KEY, devResponse.token);
-      window.localStorage.setItem(this.USER_KEY, JSON.stringify(devResponse.user));
-      window.localStorage.setItem(this.ORG_KEY, JSON.stringify(devResponse.organization));
-      
-      // Set cookie with long expiry for development
-      document.cookie = `${this.TOKEN_KEY}=${devResponse.token}; path=/; max-age=86400`;
+      const { data } = response;
+
+      if (!data || !data.token) {
+        throw new Error("Invalid response: missing token");
+      }
+
+      // Clear any existing data
+      window.localStorage.clear();
+
+      // Store token
+      localStorage.setItem(this.TOKEN_KEY, data.token);
+
+      // Store user data
+      const userData = {
+        email: data.email,
+        role: data.role,
+      };
+      localStorage.setItem(this.USER_KEY, JSON.stringify(userData));
+
+      // Set cookie
+      document.cookie = `${this.TOKEN_KEY}=${data.token}; path=/; max-age=86400; SameSite=Strict; Secure`;
+
+      return data;
+    } catch (error) {
+      console.error("Login error:", error);
+      throw error instanceof Error ? error : new Error("Login failed");
     }
-    
-    return devResponse;
   }
+
   logout(): void {
     if (this.isClient) {
-      // Clear localStorage
       window.localStorage.removeItem(this.TOKEN_KEY);
       window.localStorage.removeItem(this.USER_KEY);
-      window.localStorage.removeItem(this.ORG_KEY);
-      
-      // Clear cookie
-      document.cookie = `${this.TOKEN_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
-      
-      // Use window.location for more reliable navigation in development
-      window.location.href = '/login';
+      document.cookie = `${this.TOKEN_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict; Secure`;
+      window.location.href = "/login";
     }
   }
 
@@ -58,24 +66,34 @@ class AuthService {
     return window.localStorage.getItem(this.TOKEN_KEY);
   }
 
-  getCurrentUser(): User | null {
+  getCurrentUser(): { email: string; role: Role } | null {
     if (!this.isClient) return null;
-    const user = window.localStorage.getItem(this.USER_KEY);
-    return user ? JSON.parse(user) : null;
-  }
-  getOrganization(): User | null {
-    if (!this.isClient) return null;
-    const org = window.localStorage.getItem(this.ORG_KEY);
-    return org ? JSON.parse(org) : null;
+    try {
+      const userData = window.localStorage.getItem(this.USER_KEY);
+      if (!userData) return null;
+      return JSON.parse(userData);
+    } catch (error) {
+      console.error("Error reading user data:", error);
+      this.logout();
+      return null;
+    }
   }
 
   isAuthenticated(): boolean {
     return !!this.getToken();
   }
 
-  hasRole(roles: string[]): boolean {
-    const user = this.getCurrentUser();
-    return user ? roles.includes(user.role) : false;
+  // Add method for organization data (if needed by components)
+  getOrganization(): unknown {
+    if (!this.isClient) return null;
+    try {
+      const orgData = window.localStorage.getItem("organization");
+      if (!orgData) return null;
+      return JSON.parse(orgData);
+    } catch (error) {
+      console.error("Error reading organization data:", error);
+      return null;
+    }
   }
 }
 

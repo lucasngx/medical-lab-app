@@ -1,55 +1,39 @@
-import api from "./api";
-import { Examination, ExamStatus, AssignedTest, PaginatedResponse } from "@/types";
+import { api } from '@/config/api';
+import { Examination, ExamStatus, PaginatedResponse } from "@/types";
 
 const examinationService = {
   /**
    * Get a paginated list of examinations
    */
-  getExaminations: async (
-    page: number = 1,
-    limit: number = 10,
-    status: ExamStatus = ExamStatus.PENDING
-  ): Promise<PaginatedResponse<Examination>> => {
-    return await api.get<PaginatedResponse<Examination>>("/examinations", {
-      page,
-      limit,
-      status,
+  getExaminations: async (page: number = 0, size: number = 10): Promise<PaginatedResponse<Examination>> => {
+    const response = await api.get<PaginatedResponse<Examination>>('/api/examinations', {
+      params: { page, size }
     });
+    return response.data;
   },
 
   /**
    * Get an examination by ID
    */
   getExaminationById: async (examinationId: number): Promise<Examination> => {
-    return api.get<Examination>(`/examinations/${examinationId}`);
+    const response = await api.get<Examination>(`/api/examinations/${examinationId}`);
+    return response.data;
   },
 
   /**
    * Get examinations by patient ID
    */
-  getExaminationsByPatient: async (
-    patientId: number,
-    page: number = 1,
-    limit: number = 10
-  ): Promise<PaginatedResponse<Examination>> => {
-    return api.get<PaginatedResponse<Examination>>(`/examinations/patient/${patientId}`, {
-      page,
-      limit,
-    });
+  getExaminationsByPatient: async (patientId: number): Promise<Examination[]> => {
+    const response = await api.get<Examination[]>(`/api/examinations/patient/${patientId}`);
+    return response.data;
   },
 
   /**
    * Get examinations by doctor ID
    */
-  getExaminationsByDoctor: async (
-    doctorId: number,
-    page: number = 1,
-    limit: number = 10
-  ): Promise<PaginatedResponse<Examination>> => {
-    return api.get<PaginatedResponse<Examination>>(`/examinations/doctor/${doctorId}`, {
-      page,
-      limit,
-    });
+  getExaminationsByDoctor: async (doctorId: number): Promise<Examination[]> => {
+    const response = await api.get<Examination[]>(`/api/examinations/doctor/${doctorId}`);
+    return response.data;
   },
 
   /**
@@ -57,13 +41,26 @@ const examinationService = {
    */
   getExaminationsByStatus: async (
     status: ExamStatus,
-    page: number = 1,
+    page: number = 0,
     limit: number = 10
   ): Promise<PaginatedResponse<Examination>> => {
-    return api.get<PaginatedResponse<Examination>>(`/examinations/status/${status}`, {
-      page,
-      limit,
+    const response = await api.get<PaginatedResponse<Examination>>(`/api/examinations/status/${status}`, {
+      params: { page, limit }
     });
+    return response.data;
+  },
+
+  /**
+   * Search examinations by patient name and status
+   */
+  searchExaminations: async (params: {
+    patientName?: string;
+    status?: ExamStatus;
+  }): Promise<PaginatedResponse<Examination>> => {
+    const response = await api.get<PaginatedResponse<Examination>>('/api/examinations/search', {
+      params
+    });
+    return response.data;
   },
 
   /**
@@ -72,31 +69,8 @@ const examinationService = {
   createExamination: async (
     examinationData: Omit<Examination, "id" | "createdAt" | "updatedAt">
   ): Promise<Examination> => {
-    return api.post<Examination>("/examinations", examinationData);
-  },
-
-  /**
-   * Create a new examination with assigned tests
-   */
-  createExaminationWithTests: async (
-    examinationData: Omit<Examination, "id" | "createdAt" | "updatedAt">,
-    testIds: number[]
-  ): Promise<Examination> => {
-    const data = {
-      ...examinationData,
-      assignedTests: testIds,
-    };
-    return api.post<Examination>("/examinations/with-tests", data);
-  },
-
-  /**
-   * Update examination status
-   */
-  updateExaminationStatus: async (
-    examinationId: number,
-    status: ExamStatus
-  ): Promise<Examination> => {
-    return api.patch<Examination>(`/examinations/${examinationId}/status`, { status });
+    const response = await api.post<Examination>('/api/examinations', examinationData);
+    return response.data;
   },
 
   /**
@@ -106,65 +80,29 @@ const examinationService = {
     examinationId: number,
     examinationData: Partial<Examination>
   ): Promise<Examination> => {
-    return api.put<Examination>(`/examinations/${examinationId}`, examinationData);
+    const response = await api.put<Examination>(`/api/examinations/${examinationId}`, examinationData);
+    return response.data;
   },
 
   /**
-   * Get all tests assigned to an examination
+   * Update examination status
    */
-  getAssignedTests: async (examinationId: number): Promise<AssignedTest[]> => {
-    return api.get<AssignedTest[]>(`/examinations/${examinationId}/tests`);
-  },
-
-  /**
-   * Assign a lab test to an examination
-   */
-  assignTest: async (
+  updateExaminationStatus: async (
     examinationId: number,
-    labTestId: number
-  ): Promise<AssignedTest> => {
-    return api.post<AssignedTest>(`/examinations/${examinationId}`, {
-      labTestId,
+    status: ExamStatus
+  ): Promise<Examination> => {
+    const response = await api.put<Examination>(`/api/examinations/${examinationId}/status`, null, {
+      params: { status }
     });
+    return response.data;
   },
 
   /**
-   * Assign multiple lab tests to an examination
+   * Delete an examination
    */
-  assignTests: async (
-    examinationId: number,
-    labTestIds: number[]
-  ): Promise<AssignedTest[]> => {
-    return api.post<AssignedTest[]>(
-      `/examinations/${examinationId}/tests/batch`,
-      { labTestIds }
-    );
-  },
-
-  /**
-   * Remove a test assignment
-   */
-  removeAssignedTest: async (
-    examinationId: number,
-    assignedTestId: number
-  ): Promise<void> => {
-    return api.delete(`/api/examinations/${examinationId}/tests/${assignedTestId}`);
-  },
-
-  /**
-   * Search examinations by patient name or doctor name
-   */
-  searchExaminations: async (
-    query: string,
-    page: number = 1,
-    limit: number = 10
-  ): Promise<PaginatedResponse<Examination>> => {
-    return api.get<PaginatedResponse<Examination>>("/api/examinations/search", {
-      query,
-      page,
-      limit,
-    });
-  },
+  deleteExamination: async (examinationId: number): Promise<void> => {
+    await api.delete(`/api/examinations/${examinationId}`);
+  }
 };
 
 export default examinationService;

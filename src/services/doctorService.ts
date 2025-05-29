@@ -1,43 +1,74 @@
-import api from './api';
-import { Doctor, PaginatedResponse } from '@/types';
+import { api } from "@/config/api";
+import { Doctor, PaginatedResponse } from "@/types";
 
 const doctorService = {
   /**
    * Get a paginated list of doctors
    */
-  getDoctors: async (page: number = 1, limit: number = 10) => {
-    return api.get<PaginatedResponse<Doctor>>('/doctors', {
-      page,
-      limit,
+  getDoctors: async (page: number = 0, size: number = 10) => {
+    const response = await api.get<PaginatedResponse<Doctor>>("/api/doctors", {
+      params: { page, size },
     });
+    return response.data;
   },
 
   /**
    * Get a doctor by ID
    */
   getDoctorById: async (id: number) => {
-    return api.get<Doctor>(`/doctors/${id}`);
+    const response = await api.get<Doctor>(`/api/doctors/${id}`);
+    return response.data;
   },
 
   /**
    * Create a new doctor
    */
   createDoctor: async (doctor: Partial<Doctor>) => {
-    return api.post<Doctor>('/doctors', doctor);
+    const response = await api.post<Doctor>("/api/doctors", doctor);
+    return response.data;
   },
 
   /**
    * Update a doctor
    */
   updateDoctor: async (id: number, doctor: Partial<Doctor>) => {
-    return api.put<Doctor>(`/doctors/${id}`, doctor);
+    const response = await api.put<Doctor>(`/api/doctors/${id}`, doctor);
+    return response.data;
   },
 
   /**
    * Delete a doctor
    */
   deleteDoctor: async (id: number) => {
-    return api.delete(`/doctors/${id}`);
+    await api.delete(`/api/doctors/${id}`);
+  },
+
+  /**
+   * Search doctors by name and specialization
+   */
+  searchDoctors: async (params: {
+    name?: string;
+    specialization?: string;
+    page?: number;
+    size?: number;
+  }) => {
+    const response = await api.get<PaginatedResponse<Doctor>>(
+      "/api/doctors/search",
+      {
+        params,
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Get doctors by specialization
+   */
+  getDoctorsBySpecialization: async (specialization: string) => {
+    const response = await api.get<Doctor[]>(
+      `/api/doctors/specialization/${specialization}`
+    );
+    return response.data;
   },
 };
 

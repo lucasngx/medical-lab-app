@@ -24,7 +24,7 @@ export default function PatientForm({
 
   const [formData, setFormData] = useState<Partial<Patient>>({
     name: "",
-    dob: "",
+    dateOfBirth: "",
     gender: "",
     phone: "",
     email: "",
@@ -52,7 +52,9 @@ export default function PatientForm({
   }, [patientId]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
@@ -70,7 +72,9 @@ export default function PatientForm({
       if (isEditing && patientId) {
         await patientService.updatePatient(patientId, formData);
       } else {
-        await patientService.createPatient(formData as Omit<Patient, "id" | "createdAt" | "updatedAt">);
+        await patientService.createPatient(
+          formData as Omit<Patient, "id" | "createdAt" | "updatedAt">
+        );
       }
 
       if (onSuccess) {
@@ -102,7 +106,10 @@ export default function PatientForm({
       )}
 
       <div>
-        <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+        <label
+          htmlFor="name"
+          className="block text-sm font-medium text-gray-700"
+        >
           Name *
         </label>
         <input
@@ -117,7 +124,10 @@ export default function PatientForm({
       </div>
 
       <div>
-        <label htmlFor="dob" className="block text-sm font-medium text-gray-700">
+        <label
+          htmlFor="dob"
+          className="block text-sm font-medium text-gray-700"
+        >
           Date of Birth *
         </label>
         <input
@@ -132,7 +142,10 @@ export default function PatientForm({
       </div>
 
       <div>
-        <label htmlFor="gender" className="block text-sm font-medium text-gray-700">
+        <label
+          htmlFor="gender"
+          className="block text-sm font-medium text-gray-700"
+        >
           Gender *
         </label>
         <select
@@ -151,7 +164,10 @@ export default function PatientForm({
       </div>
 
       <div>
-        <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
+        <label
+          htmlFor="phone"
+          className="block text-sm font-medium text-gray-700"
+        >
           Phone Number *
         </label>
         <input
@@ -166,7 +182,10 @@ export default function PatientForm({
       </div>
 
       <div>
-        <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+        <label
+          htmlFor="email"
+          className="block text-sm font-medium text-gray-700"
+        >
           Email
         </label>
         <input
@@ -180,7 +199,10 @@ export default function PatientForm({
       </div>
 
       <div>
-        <label htmlFor="address" className="block text-sm font-medium text-gray-700">
+        <label
+          htmlFor="address"
+          className="block text-sm font-medium text-gray-700"
+        >
           Address
         </label>
         <textarea
@@ -206,7 +228,11 @@ export default function PatientForm({
           disabled={isLoading}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
         >
-          {isLoading ? "Saving..." : isEditing ? "Update Patient" : "Create Patient"}
+          {isLoading
+            ? "Saving..."
+            : isEditing
+            ? "Update Patient"
+            : "Create Patient"}
         </button>
       </div>
     </form>

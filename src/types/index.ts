@@ -32,7 +32,7 @@ export interface ReferenceRange {
 export interface Patient {
   id: number;
   name: string;
-  dob: string;
+  dateOfBirth: string;
   gender: string;
   phone: string;
   email: string;

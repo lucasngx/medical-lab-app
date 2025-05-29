@@ -1,163 +1,185 @@
-import api from "./api";
-import { Prescription, PaginatedResponse, Medication, PrescriptionItem } from "@/types";
+import { api } from "@/config/api";
+import { Prescription, PaginatedResponse, PrescriptionItem } from "@/types";
 
 const prescriptionService = {
   /**
    * Get a paginated list of prescriptions
    */
   getPrescriptions: async (
-    page: number = 1,
-    limit: number = 10
+    page: number = 0,
+    size: number = 10
   ): Promise<PaginatedResponse<Prescription>> => {
-    return api.get<PaginatedResponse<Prescription>>("/prescriptions", {
-      page,
-      limit,
-    });
+    const response = await api.get<PaginatedResponse<Prescription>>(
+      "/api/prescriptions",
+      {
+        params: { page, size },
+      }
+    );
+    return response.data;
   },
 
   /**
    * Get a prescription by ID
    */
-  getPrescriptionById: async (
-    prescriptionId: number
-  ): Promise<Prescription> => {
-    return api.get<Prescription>(`/prescriptions/${prescriptionId}`);
+  getPrescriptionById: async (id: number): Promise<Prescription> => {
+    const response = await api.get<Prescription>(`/api/prescriptions/${id}`);
+    return response.data;
+  },
+
+  /**
+   * Get prescriptions for a specific examination
+   */
+  getPrescriptionsByExamination: async (
+    examinationId: number
+  ): Promise<Prescription[]> => {
+    const response = await api.get<Prescription[]>(
+      `/api/prescriptions/examination/${examinationId}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Get prescriptions for a patient
+   */
+  getPrescriptionsByPatient: async (
+    patientId: number
+  ): Promise<Prescription[]> => {
+    const response = await api.get<Prescription[]>(
+      `/api/prescriptions/patient/${patientId}`
+    );
+    return response.data;
+  },
+
+  /**
+   * Get prescriptions by doctor
+   */
+  getPrescriptionsByDoctor: async (
+    doctorId: number
+  ): Promise<Prescription[]> => {
+    const response = await api.get<Prescription[]>(
+      `/api/prescriptions/doctor/${doctorId}`
+    );
+    return response.data;
   },
 
   /**
    * Create a new prescription
    */
   createPrescription: async (
-    prescriptionData: Omit<Prescription, "id" | "createdAt">
+    prescription: Omit<Prescription, "id">
   ): Promise<Prescription> => {
-    return api.post<Prescription>("/prescriptions", prescriptionData);
+    const response = await api.post<Prescription>(
+      "/api/prescriptions",
+      prescription
+    );
+    return response.data;
   },
 
   /**
-   * Update an existing prescription
+   * Create a prescription with items
+   */
+  createPrescriptionWithItems: async (data: {
+    prescription: Omit<Prescription, "id">;
+    items: Omit<PrescriptionItem, "id" | "prescriptionId">[];
+  }): Promise<Prescription> => {
+    const response = await api.post<Prescription>(
+      "/api/prescriptions/with-items",
+      data
+    );
+    return response.data;
+  },
+
+  /**
+   * Update a prescription
    */
   updatePrescription: async (
-    prescriptionId: number,
-    prescriptionData: Partial<Prescription>
+    id: number,
+    prescription: Partial<Prescription>
   ): Promise<Prescription> => {
-    return api.put<Prescription>(
-      `/prescriptions/${prescriptionId}`,
-      prescriptionData
+    const response = await api.put<Prescription>(
+      `/api/prescriptions/${id}`,
+      prescription
     );
+    return response.data;
   },
 
   /**
    * Delete a prescription
    */
-  deletePrescription: async (prescriptionId: number): Promise<void> => {
-    return api.delete(`/prescriptions/${prescriptionId}`);
+  deletePrescription: async (id: number): Promise<void> => {
+    await api.delete(`/api/prescriptions/${id}`);
+  },
+
+  /**
+   * Get prescription items with pagination
+   */
+  getPrescriptionItems: async (
+    page: number = 0,
+    size: number = 10
+  ): Promise<PaginatedResponse<PrescriptionItem>> => {
+    const response = await api.get<PaginatedResponse<PrescriptionItem>>(
+      "/api/prescription-items",
+      {
+        params: { page, size },
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Get a prescription item by ID
+   */
+  getPrescriptionItemById: async (id: number): Promise<PrescriptionItem> => {
+    const response = await api.get<PrescriptionItem>(
+      `/api/prescription-items/${id}`
+    );
+    return response.data;
   },
 
   /**
    * Get prescription items for a prescription
    */
-  getPrescriptionItems: async (
+  getPrescriptionItemsByPrescription: async (
     prescriptionId: number
   ): Promise<PrescriptionItem[]> => {
-    return api.get<PrescriptionItem[]>(
-      `/prescription-items/${prescriptionId}`
+    const response = await api.get<PrescriptionItem[]>(
+      `/api/prescription-items/prescription/${prescriptionId}`
     );
+    return response.data;
   },
 
   /**
-   * Add an item to a prescription
+   * Create a new prescription item
    */
-
-  createPrescriptionItem: async(data: {
-  prescriptionId: number;
-  medicationId: number;
-  dosage: string;
-  duration: string;
-  frequency: string;
-}): Promise<PrescriptionItem> =>{
-  return api.post<PrescriptionItem>("/prescription-items", data);
-},
+  createPrescriptionItem: async (
+    item: Omit<PrescriptionItem, "id">
+  ): Promise<PrescriptionItem> => {
+    const response = await api.post<PrescriptionItem>(
+      "/api/prescription-items",
+      item
+    );
+    return response.data;
+  },
 
   /**
    * Update a prescription item
    */
   updatePrescriptionItem: async (
-    prescriptionId: number,
-    itemId: number,
-    itemData: Partial<PrescriptionItem>
+    id: number,
+    item: Partial<PrescriptionItem>
   ): Promise<PrescriptionItem> => {
-    return api.put<PrescriptionItem>(
-      `/prescriptions/${prescriptionId}/items/${itemId}`,
-      itemData
+    const response = await api.put<PrescriptionItem>(
+      `/api/prescription-items/${id}`,
+      item
     );
+    return response.data;
   },
 
   /**
-   * Remove an item from a prescription
+   * Delete a prescription item
    */
-  removePrescriptionItem: async (
-    prescriptionId: number,
-    itemId: number
-  ): Promise<void> => {
-    return api.delete(`/prescriptions/${prescriptionId}/items/${itemId}`);
-  },
-
-  /**
-   * Get a list of medications
-   */
-  getMedications: async (
-    page: number = 1,
-    limit: number = 10
-  ): Promise<PaginatedResponse<Medication>> => {
-    return api.get<PaginatedResponse<Medication>>("/medications", {
-      page,
-      limit,
-    });
-  },
-
-  /**
-   * Search medications by name
-   */
-  searchMedications: async (
-    query: string,
-    limit: number = 10
-  ): Promise<Medication[]> => {
-    return api.get<Medication[]>("/medications/search", { query, limit });
-  },
-
-  /**
-   * Get prescriptions for a patient
-   */
-  getPatientPrescriptions: async (
-    patientId: number,
-    page: number = 1,
-    limit: number = 10
-  ): Promise<PaginatedResponse<Prescription>> => {
-    return api.get<PaginatedResponse<Prescription>>("/prescriptions", {
-      patientId,
-      page,
-      limit,
-    });
-  },
-
-  /**
-   * Get prescriptions for an examination
-   */
-  getPrescriptionsByExamination: async (examinationId: number): Promise<Prescription[]> => {
-    return api.get<Prescription[]>(`/examinations/${examinationId}/prescriptions`);
-  },
-
-  /**
-   * Print/export a prescription
-   */
-  exportPrescription: async (
-    prescriptionId: number,
-    format: "pdf" | "csv" = "pdf"
-  ): Promise<Blob> => {
-    return api.get<Blob>(`/prescriptions/${prescriptionId}/export`, {
-      format,
-      responseType: "blob",
-    });
+  deletePrescriptionItem: async (id: number): Promise<void> => {
+    await api.delete(`/api/prescription-items/${id}`);
   },
 };
 

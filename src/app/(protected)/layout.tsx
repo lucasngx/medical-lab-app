@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import MainLayout from "@/components/layout/MainLayout";
+import RouteGuard from "@/components/auth/RouteGuard";
 import { authService } from "@/services/authService";
 
 export default function ProtectedLayout({
@@ -13,11 +13,22 @@ export default function ProtectedLayout({
   const router = useRouter();
 
   useEffect(() => {
-    // Check authentication
-    if (!authService.isAuthenticated()) {
-      window.location.href = "/login";
-    }
-  }, []);
+    const checkAuth = async () => {
+      if (!authService.isAuthenticated()) {
+        router.push("/login");
+        return;
+      }
 
-  return <MainLayout>{children}</MainLayout>;
+      const user = authService.getCurrentUser();
+      console.log("Protected Layout - Current User:", user);
+    };
+
+    checkAuth();
+  }, [router]);
+
+  return (
+    <RouteGuard>
+      {children}
+    </RouteGuard>
+  );
 }
