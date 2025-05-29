@@ -4,15 +4,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useSelector } from "react-redux";
-import { ChevronDown, Plus } from "lucide-react";
-import { Examination, ExamStatus, Patient, Doctor, Role, LabTest } from "@/types";
+import { Examination, ExamStatus, Patient, LabTest } from "@/types";
 import examinationService from "@/services/examinationService";
 import patientService from "@/services/patientService";
 import labTestService from "@/services/labTestService";
-import { RootState } from "@/store";
 import AssignTestModal from "@/components/examinations/AssignTestModal";
+import AuthStatusDebug from "@/components/auth/AuthStatusDebug";
 import api from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ExaminationFormProps {
   examinationId?: number;
@@ -26,54 +25,112 @@ export default function ExaminationForm({
   onSuccess,
 }: ExaminationFormProps) {
   const router = useRouter();
+  const { user, isAuthenticated, isHydrated } = useAuth();
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [patients, setPatients] = useState<Patient[]>([]);
   const [labTests, setLabTests] = useState<LabTest[]>([]);
   const [selectedTests, setSelectedTests] = useState<number[]>([]);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const user = useSelector((state: RootState) => state.auth.user);
-  // Using Dr. Robert Johnson's information
-  const hardcodedDoctor = {
-    id: 2,
-    email: "robert.johnson@example.com",
-    name: "Dr. Robert Johnson",
-    phone: "1987654321",
-    role: Role.DOCTOR,
-    specialization: "Cardiologist"
-  };
+  
+  const isEditing = !!examinationId;
+
+  // Debug authentication state
+  useEffect(() => {
+    console.log("🔍 ExaminationForm Debug:");
+    console.log("- Auth user:", user);
+    console.log("- Is authenticated:", isAuthenticated);
+    console.log("- Is hydrated:", isHydrated);
+    console.log("- User ID:", user?.id);
+    console.log("- User role:", user?.role);
+    console.log(
+      "- localStorage token:",
+      typeof window !== "undefined" ? localStorage.getItem("auth_token") : "SSR"
+    );
+    console.log(
+      "- localStorage user:",
+      typeof window !== "undefined" ? localStorage.getItem("user") : "SSR"
+    );
+  }, [user, isAuthenticated, isHydrated]);
+
+  // Update doctorId when user information becomes available
+  useEffect(() => {
+    if (user?.id) {
+      console.log("Setting doctorId to:", user.id);
+      setFormData((prev) => ({
+        ...prev,
+        doctorId: user.id,
+      }));
+    }
+  }, [user?.id]);
+
+  // Add validation for user authentication
+  useEffect(() => {
+    if (!isHydrated) {
+      console.log("Auth context is not yet hydrated");
+      return;
+    }
+
+    if (!isAuthenticated) {
+      console.warn("User is not authenticated. Please log in.");
+      setError("Please log in to create an examination.");
+    } else if (!user?.id) {
+      console.warn("User is authenticated but missing ID");
+      setError("Authentication error: Missing user ID");
+    } else {
+      console.log("User is properly authenticated with ID:", user.id);
+      setError(""); // Clear any previous error
+    }
+  }, [isAuthenticated, user?.id, isHydrated]);
 
   const [formData, setFormData] = useState<Partial<Examination>>({
     patientId: patientId || 0,
-    doctorId: hardcodedDoctor.id,
+    doctorId: user?.id || 0,
     examDate: new Date().toISOString().split("T")[0],
     symptoms: "",
+    diagnosis: "",
     notes: "",
-    status: ExamStatus.PENDING,
+    status: ExamStatus.SCHEDULED,
   });
-
-  const isEditing = !!examinationId;
 
   // Fetch patients and lab tests data
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
+      setError("");
+
       try {
+        console.log("Fetching patients and lab tests from API...");
+
         const [patientsRes, labTestsRes] = await Promise.all([
-          patientService.getPatients(1, 100),
-          labTestService.getLabTests(1, 100),
+          patientService.getPatients(0, 100),
+          labTestService.getLabTests(0, 100),
         ]);
-        
+
+        console.log("Patients response:", patientsRes);
+        console.log("Lab tests response:", labTestsRes);
+
         if (patientsRes?.data) {
           setPatients(patientsRes.data);
+          console.log("Set patients:", patientsRes.data);
+        } else {
+          console.warn("No patients data in response");
+          setError("No patients found");
         }
-        
+
         if (labTestsRes?.data) {
           setLabTests(labTestsRes.data);
+          console.log("Set lab tests:", labTestsRes.data);
+        } else {
+          console.warn("No lab tests data in response");
+          setError("No lab tests found");
         }
       } catch (err) {
-        console.error("Error fetching data:", err);
-        setError("Failed to load required data");
+        console.error("Error fetching data from API:", err);
+        setError(
+          "Failed to load data from server. Please check your connection and try again."
+        );
       } finally {
         setIsLoading(false);
       }
@@ -91,7 +148,11 @@ export default function ExaminationForm({
         .then((examination) => {
           setFormData({
             ...examination,
-            examDate: examination.examDate.split("T")[0],
+            examDate: examination.examDate
+              ? examination.examDate.split("T")[0]
+              : examination.examinationDate
+              ? examination.examinationDate.split("T")[0]
+              : "",
           });
         })
         .catch((err) => {
@@ -110,7 +171,7 @@ export default function ExaminationForm({
     >
   ) => {
     const { name, value } = e.target;
-    let processedValue: any = value;
+    let processedValue: string | number = value;
 
     // Handle numeric values
     if (name === "patientId") {
@@ -126,8 +187,33 @@ export default function ExaminationForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!isHydrated) {
+      setError("Please wait while we load your authentication status...");
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setError("Please log in to create an examination.");
+      return;
+    }
+
+    if (!user?.id) {
+      setError("Authentication error: Missing user ID");
+      return;
+    }
+
     if (!formData.patientId) {
       setError("Please select a patient");
+      return;
+    }
+
+    if (!formData.symptoms?.trim()) {
+      setError("Please enter symptoms");
+      return;
+    }
+
+    if (!formData.diagnosis?.trim()) {
+      setError("Please enter diagnosis");
       return;
     }
 
@@ -140,19 +226,26 @@ export default function ExaminationForm({
 
       if (isEditing && examinationId) {
         // Update existing examination
-        savedExamination = await examinationService.updateExamination(examinationId, formData);
+        savedExamination = await examinationService.updateExamination(
+          examinationId,
+          formData
+        );
         newExaminationId = examinationId;
       } else {
-        // Create new examination using hardcoded doctor
-        savedExamination = await examinationService.createExamination({
+        // Create new examination using logged-in user as doctor
+        const examinationData = {
           patientId: formData.patientId!,
-          doctorId: hardcodedDoctor.id,
+          doctorId: user.id,
           examDate: formData.examDate!,
+          examinationDate: formData.examDate!, // Backend expects this field name
           symptoms: formData.symptoms!,
+          diagnosis: formData.diagnosis!,
           notes: formData.notes || "",
-          status: ExamStatus.PENDING,
-        });
+          status: ExamStatus.SCHEDULED,
+        };
 
+        console.log("Creating examination with data:", examinationData);
+        savedExamination = await examinationService.createExamination(examinationData);
         newExaminationId = savedExamination.id;
       }
 
@@ -160,7 +253,6 @@ export default function ExaminationForm({
       if (selectedTests.length > 0 && newExaminationId) {
         await Promise.all(
           selectedTests.map(async (testId) => {
-            // await examinationService.assignTest(newExaminationId, testId);
             await api.post("/assigned-tests", {
               examinationId: newExaminationId,
               labTestId: testId,
@@ -176,16 +268,30 @@ export default function ExaminationForm({
       }
     } catch (err) {
       console.error("Failed to save examination:", err);
-      setError("Failed to save examination. Please try again.");
+
+      // Provide more specific error messages based on the error type
+      if (err instanceof Error && err.message.includes("403")) {
+        setError(
+          "Access denied. You don't have permission to create examinations. Please check your login status and role permissions."
+        );
+      } else if (err instanceof Error && err.message.includes("401")) {
+        setError("Authentication required. Please log in again.");
+      } else if (err instanceof Error && err.message.includes("400")) {
+        setError(
+          "Invalid data provided. Please check all required fields are filled correctly."
+        );
+      } else {
+        setError("Failed to save examination. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleTestChange = (testId: number) => {
-    setSelectedTests(prev => {
+    setSelectedTests((prev) => {
       if (prev.includes(testId)) {
-        return prev.filter(id => id !== testId);
+        return prev.filter((id) => id !== testId);
       } else {
         return [...prev, testId];
       }
@@ -202,6 +308,8 @@ export default function ExaminationForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      <AuthStatusDebug />
+
       {error && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4">
           <div className="flex">
@@ -266,7 +374,10 @@ export default function ExaminationForm({
                 onChange={() => handleTestChange(test.id)}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
-              <label htmlFor={`test-${test.id}`} className="ml-2 block text-sm text-gray-900">
+              <label
+                htmlFor={`test-${test.id}`}
+                className="ml-2 block text-sm text-gray-900"
+              >
                 {test.name}
               </label>
             </div>
@@ -312,6 +423,24 @@ export default function ExaminationForm({
 
       <div>
         <label
+          htmlFor="diagnosis"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Diagnosis
+        </label>
+        <textarea
+          id="diagnosis"
+          name="diagnosis"
+          rows={3}
+          value={formData.diagnosis || ""}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
+          required
+        />
+      </div>
+
+      <div>
+        <label
           htmlFor="notes"
           className="block text-sm font-medium text-gray-700"
         >
@@ -332,7 +461,11 @@ export default function ExaminationForm({
           type="submit"
           className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         >
-          {isLoading ? "Saving..." : isEditing ? "Update Examination" : "Create Examination"}
+          {isLoading
+            ? "Saving..."
+            : isEditing
+            ? "Update Examination"
+            : "Create Examination"}
         </button>
       </div>
 

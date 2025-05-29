@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(request: NextRequest) {
+  // Check for token in cookies
   const token = request.cookies.get("auth_token")?.value;
+  
+  // Check for token in Authorization header
+  const authHeader = request.headers.get("Authorization");
+  const hasAuthHeader = authHeader?.startsWith("Bearer ");
+  
+  const isAuthenticated = token || hasAuthHeader;
   const isAuthPage = request.nextUrl.pathname === "/login";
   const isUnauthorizedPage = request.nextUrl.pathname === "/unauthorized";
 
@@ -12,12 +19,12 @@ export function middleware(request: NextRequest) {
   }
 
   // Redirect to login if not authenticated
-  if (!token && !isAuthPage && !isUnauthorizedPage) {
+  if (!isAuthenticated && !isAuthPage && !isUnauthorizedPage) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
   // Redirect authenticated users to dashboard
-  if (token && isAuthPage) {
+  if (isAuthenticated && isAuthPage) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

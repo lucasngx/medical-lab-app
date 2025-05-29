@@ -1,4 +1,4 @@
-import { api } from "@/config/api";
+import api from "@/services/api";
 import { Patient, PaginatedResponse } from "@/types";
 
 /**
@@ -14,7 +14,9 @@ const patientService = {
   ): Promise<PaginatedResponse<Patient>> => {
     const response = await api.get<PaginatedResponse<Patient>>(
       "/api/patients",
-      { params: { page, size } }
+      {
+        params: { page, size },
+      }
     );
     return response.data;
   },

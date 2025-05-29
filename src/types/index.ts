@@ -1,7 +1,8 @@
 export enum ExamStatus {
-  PENDING = "PENDING",
+  SCHEDULED = "SCHEDULED", // Changed from PENDING to match backend
   IN_PROGRESS = "IN_PROGRESS",
   COMPLETED = "COMPLETED",
+  CANCELLED = "CANCELLED", // Added to match backend
 }
 
 export enum TestStatus {
@@ -33,6 +34,7 @@ export interface Patient {
   id: number;
   name: string;
   dateOfBirth: string;
+  dob: string; // Alias for dateOfBirth for backward compatibility
   gender: string;
   phone: string;
   email: string;
@@ -63,8 +65,10 @@ export interface Examination {
   id: number;
   patientId: number;
   doctorId: number;
-  examDate: string;
+  examDate: string; // Frontend field name
+  examinationDate?: string; // Backend field name for compatibility
   symptoms: string;
+  diagnosis: string; // Required by backend
   notes: string;
   status: ExamStatus;
   createdAt: string;
@@ -95,7 +99,6 @@ export interface AssignedTest {
 }
 
 export interface TestResult {
-  [x: string]: any;
   id: number;
   assignedTestId: number;
   technicianId: number;
@@ -104,6 +107,7 @@ export interface TestResult {
   status: ResultStatus;
   comment: string;
   technician?: Technician;
+  [key: string]: any; // For dynamic properties
 }
 
 export interface Prescription {
@@ -168,4 +172,8 @@ export interface User {
   role: Role;
   organizationId: number;
   organization?: Organization;
+  phone?: string;
+  department?: string;
+  specialization?: string;
+  organizationName?: string;
 }

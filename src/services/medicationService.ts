@@ -1,4 +1,4 @@
-import { api } from "@/config/api";
+import api from "@/services/api";
 import { Medication, PaginatedResponse } from "@/types";
 
 const medicationService = {
@@ -29,10 +29,15 @@ const medicationService = {
   /**
    * Search medications by name
    */
-  searchMedications: async (name: string): Promise<Medication[]> => {
-    const response = await api.get<Medication[]>("/api/medications/search", {
-      params: { name },
-    });
+  searchMedications: async (
+    name: string
+  ): Promise<PaginatedResponse<Medication>> => {
+    const response = await api.get<PaginatedResponse<Medication>>(
+      "/api/medications/search",
+      {
+        params: { name },
+      }
+    );
     return response.data;
   },
 

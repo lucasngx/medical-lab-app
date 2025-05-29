@@ -5,7 +5,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Patient } from "@/types";
-import { Search, PenSquare, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Search,
+  PenSquare,
+  Trash2,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import patientService from "@/services/patientService";
 import { usePagination } from "@/hooks/usePagination";
 
@@ -17,21 +23,32 @@ export default function PatientList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [totalItems, setTotalItems] = useState(0);
 
-  const { currentPage, totalPages, itemsPerPage, nextPage, prevPage } = usePagination({
-    totalItems,
-    itemsPerPage: 10
-  });
+  const { currentPage, totalPages, itemsPerPage, nextPage, prevPage } =
+    usePagination({
+      totalItems,
+      itemsPerPage: 10,
+    });
 
   useEffect(() => {
     const fetchPatients = async () => {
       try {
         setIsLoading(true);
-        const response = await patientService.getPatients(currentPage, itemsPerPage);
-        setPatients(response.data);
-        setTotalItems(response.total);
+        console.log(
+          "Fetching patients with page:",
+          currentPage - 1,
+          "size:",
+          itemsPerPage
+        );
+        const response = await patientService.getPatients(
+          currentPage - 1,
+          itemsPerPage
+        );
+        console.log("Patients response:", response);
+        setPatients(response.data || []);
+        setTotalItems(response.total || 0);
       } catch (err) {
         setError("Failed to load patients");
-        console.error(err);
+        console.error("Patient fetch error:", err);
       } finally {
         setIsLoading(false);
       }
@@ -48,17 +65,18 @@ export default function PatientList() {
 
     try {
       await patientService.deletePatient(id);
-      setPatients(patients.filter(patient => patient.id !== id));
+      setPatients(patients.filter((patient) => patient.id !== id));
     } catch (err) {
       setError("Failed to delete patient");
       console.error(err);
     }
   };
 
-  const filteredPatients = patients.filter(patient =>
-    patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.phone.includes(searchTerm)
+  const filteredPatients = patients.filter(
+    (patient) =>
+      patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.phone.includes(searchTerm)
   );
 
   if (isLoading) {
@@ -91,7 +109,7 @@ export default function PatientList() {
           </div>
         </div>
         <button
-          onClick={() => router.push('/patients/new')}
+          onClick={() => router.push("/patients/new")}
           className="mt-3 sm:mt-0 w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           Add Patient
@@ -102,19 +120,34 @@ export default function PatientList() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Name
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 DOB
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Contact
               </th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                scope="col"
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Address
               </th>
-              <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              <th
+                scope="col"
+                className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Actions
               </th>
             </tr>
@@ -123,7 +156,9 @@ export default function PatientList() {
             {filteredPatients.map((patient) => (
               <tr key={patient.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{patient.name}</div>
+                  <div className="text-sm font-medium text-gray-900">
+                    {patient.name}
+                  </div>
                   <div className="text-sm text-gray-500">ID: #{patient.id}</div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -165,7 +200,15 @@ export default function PatientList() {
 
       {filteredPatients.length === 0 && !isLoading && (
         <div className="text-center py-10">
-          <p className="text-gray-500">No patients found</p>
+          <p className="text-gray-500">
+            {patients.length === 0
+              ? "No patients found in database"
+              : `No patients match your search "${searchTerm}"`}
+          </p>
+          <p className="text-sm text-gray-400 mt-2">
+            Total items: {totalItems}, Current page: {currentPage}, Items per
+            page: {itemsPerPage}
+          </p>
         </div>
       )}
 

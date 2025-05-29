@@ -4,10 +4,17 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
-import { Prescription, PrescriptionItem, Medication, Examination, ExamStatus } from "@/types";
+import {
+  Prescription,
+  PrescriptionItem,
+  Medication,
+  Examination,
+  ExamStatus,
+} from "@/types";
 import prescriptionService from "@/services/prescriptionService";
+import medicationService from "@/services/medicationService";
 import examinationService from "@/services/examinationService";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
 
 interface PrescriptionFormProps {
   prescriptionId?: number;
@@ -48,25 +55,31 @@ export default function PrescriptionForm({
       setIsLoading(true);
       try {
         // Load medications for selection
-        const medicationsResponse = await prescriptionService.getMedications(1, 100);
+        const medicationsResponse = await medicationService.getMedications(
+          1,
+          100
+        );
         setMedications(medicationsResponse.data);
 
         // Load available examinations (both in progress and completed)
         const [inProgressExams, completedExams] = await Promise.all([
           examinationService.getExaminations(1, 100, ExamStatus.IN_PROGRESS),
-          examinationService.getExaminations(1, 100, ExamStatus.COMPLETED)
+          examinationService.getExaminations(1, 100, ExamStatus.COMPLETED),
         ]);
         setExaminations([...inProgressExams.data, ...completedExams.data]);
         // If we have an examination ID, load examination details
         if (examinationId) {
-          const examinationData = await examinationService.getExaminationById(examinationId);
+          const examinationData = await examinationService.getExaminationById(
+            examinationId
+          );
           setExamination(examinationData);
-          setFormData(prev => ({ ...prev, examinationId }));
+          setFormData((prev) => ({ ...prev, examinationId }));
         }
 
         // If editing an existing prescription, load its data
         if (prescriptionId) {
-          const prescriptionData = await prescriptionService.getPrescriptionById(prescriptionId);
+          const prescriptionData =
+            await prescriptionService.getPrescriptionById(prescriptionId);
           setFormData({
             examinationId: prescriptionData.examinationId,
             diagnosis: prescriptionData.diagnosis,
@@ -74,15 +87,20 @@ export default function PrescriptionForm({
           });
 
           // Load examination data for the prescription
-          const examData = await examinationService.getExaminationById(prescriptionData.examinationId);
+          const examData = await examinationService.getExaminationById(
+            prescriptionData.examinationId
+          );
           setExamination(examData);
 
           // Load prescription items
-          const prescriptionItemsData = await prescriptionService.getPrescriptionItems(prescriptionId);
-          setPrescriptionItems(prescriptionItemsData.map(item => ({
-            ...item,
-            tempId: uuidv4(),
-          })));
+          const prescriptionItemsData =
+            await prescriptionService.getPrescriptionItems(prescriptionId);
+          setPrescriptionItems(
+            prescriptionItemsData.map((item) => ({
+              ...item,
+              tempId: uuidv4(),
+            }))
+          );
         } else {
           // Add one empty item for new prescriptions
           addEmptyMedicationItem();
@@ -100,9 +118,11 @@ export default function PrescriptionForm({
 
   const handleExaminationChange = async (examinationId: number) => {
     try {
-      const selectedExamination = await examinationService.getExaminationById(examinationId);
+      const selectedExamination = await examinationService.getExaminationById(
+        examinationId
+      );
       setExamination(selectedExamination);
-      setFormData(prev => ({ ...prev, examinationId }));
+      setFormData((prev) => ({ ...prev, examinationId }));
     } catch (error) {
       console.error("Failed to load examination details:", error);
       setError("Failed to load examination details. Please try again.");
@@ -113,11 +133,11 @@ export default function PrescriptionForm({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const addEmptyMedicationItem = () => {
-    setPrescriptionItems(prev => [
+    setPrescriptionItems((prev) => [
       ...prev,
       {
         tempId: uuidv4(),
@@ -134,77 +154,81 @@ export default function PrescriptionForm({
     field: keyof PrescriptionItem,
     value: string | number
   ) => {
-    setPrescriptionItems(prev =>
-      prev.map(item =>
+    setPrescriptionItems((prev) =>
+      prev.map((item) =>
         item.tempId === tempId ? { ...item, [field]: value } : item
       )
     );
   };
 
   const removeItem = (tempId: string) => {
-    setPrescriptionItems(prev => prev.filter(item => item.tempId !== tempId));
+    setPrescriptionItems((prev) =>
+      prev.filter((item) => item.tempId !== tempId)
+    );
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  if (!formData.examinationId) {
-    setError("No examination selected.");
-    return;
-  }
-
-  if (!formData.diagnosis || prescriptionItems.length === 0) {
-    setError("Please provide a diagnosis and at least one medication.");
-    return;
-  }
-
-  // Check if all medication items have required fields
-  const incompleteItems = prescriptionItems.filter(
-    item => !item.medicationId || !item.dosage || !item.frequency
-  );
-
-  if (incompleteItems.length > 0) {
-    setError("Please complete all required medication fields (medication, dosage, and frequency).");
-    return;
-  }
-
-  setIsSaving(true);
-  setError("");
-
-  try {
-    // Map your prescriptionItems to the DTO format expected by backend
-    const items = prescriptionItems.map(item => ({
-      medicationId: item.medicationId!,
-      dosage: item.dosage!,
-      duration: item.duration || "",  // Provide default if optional
-      frequency: item.frequency!,
-    }));
-
-    // Build the full DTO for backend
-    const prescriptionDTO = {
-      examinationId: formData.examinationId!,
-      diagnosis: formData.diagnosis!,
-      notes: formData.notes || "",
-      prescriptionItems: items,
-    };
-
-    // Call the single createPrescription API
-    const createdPrescription = await prescriptionService.createPrescription(prescriptionDTO);
-
-
-    if (onSuccess) {
-      onSuccess();
-    } else {
-      router.push(`/examinations/${formData.examinationId}`);
+    if (!formData.examinationId) {
+      setError("No examination selected.");
+      return;
     }
-  } catch (error) {
-    console.error("Failed to save prescription:", error);
-    setError("Failed to save prescription. Please try again.");
-  } finally {
-    setIsSaving(false);
-  }
-};
 
+    if (!formData.diagnosis || prescriptionItems.length === 0) {
+      setError("Please provide a diagnosis and at least one medication.");
+      return;
+    }
+
+    // Check if all medication items have required fields
+    const incompleteItems = prescriptionItems.filter(
+      (item) => !item.medicationId || !item.dosage || !item.frequency
+    );
+
+    if (incompleteItems.length > 0) {
+      setError(
+        "Please complete all required medication fields (medication, dosage, and frequency)."
+      );
+      return;
+    }
+
+    setIsSaving(true);
+    setError("");
+
+    try {
+      // Map your prescriptionItems to the DTO format expected by backend
+      const items = prescriptionItems.map((item) => ({
+        medicationId: item.medicationId!,
+        dosage: item.dosage!,
+        duration: item.duration || "", // Provide default if optional
+        frequency: item.frequency!,
+      }));
+
+      // Build the full DTO for backend
+      const prescriptionDTO = {
+        examinationId: formData.examinationId!,
+        diagnosis: formData.diagnosis!,
+        notes: formData.notes || "",
+        prescriptionItems: items,
+      };
+
+      // Call the single createPrescription API
+      const createdPrescription = await prescriptionService.createPrescription(
+        prescriptionDTO
+      );
+
+      if (onSuccess) {
+        onSuccess();
+      } else {
+        router.push(`/examinations/${formData.examinationId}`);
+      }
+    } catch (error) {
+      console.error("Failed to save prescription:", error);
+      setError("Failed to save prescription. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -215,7 +239,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   }
 
   const filteredMedications = searchTerm
-    ? medications.filter(med =>
+    ? medications.filter((med) =>
         med.name.toLowerCase().includes(searchTerm.toLowerCase())
       )
     : medications;
@@ -264,22 +288,24 @@ const handleSubmit = async (e: React.FormEvent) => {
           </p>
         </div>
       )} */}
-       <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-          <h2 className="text-lg font-medium text-blue-800"></h2>
-      {examinations.map((exam) => (
-                <option key={exam.id} value={exam.id}>
-                  Examination #{exam.id} - {exam.patient?.name || `Patient #${exam.patientId}`} | 
-                  {new Date(exam.examDate).toLocaleDateString()} | 
-                  {exam.doctor?.name} ({exam.doctor?.specialization}) | 
-                  Status: {exam.status}
-                </option>
-              ))}
-        </div>
-
+      <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+        <h2 className="text-lg font-medium text-blue-800"></h2>
+        {examinations.map((exam) => (
+          <option key={exam.id} value={exam.id}>
+            Examination #{exam.id} -{" "}
+            {exam.patient?.name || `Patient #${exam.patientId}`} |
+            {new Date(exam.examDate).toLocaleDateString()} |{exam.doctor?.name}{" "}
+            ({exam.doctor?.specialization}) | Status: {exam.status}
+          </option>
+        ))}
+      </div>
 
       <div className="grid grid-cols-1 gap-6">
         <div>
-          <label htmlFor="diagnosis" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="diagnosis"
+            className="block text-sm font-medium text-gray-700"
+          >
             Diagnosis *
           </label>
           <textarea
@@ -295,7 +321,10 @@ const handleSubmit = async (e: React.FormEvent) => {
         </div>
 
         <div>
-          <label htmlFor="notes" className="block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="notes"
+            className="block text-sm font-medium text-gray-700"
+          >
             Additional Notes
           </label>
           <textarea
@@ -402,7 +431,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                       type="text"
                       value={item.frequency || ""}
                       onChange={(e) =>
-                        handleItemChange(item.tempId!, "frequency", e.target.value)
+                        handleItemChange(
+                          item.tempId!,
+                          "frequency",
+                          e.target.value
+                        )
                       }
                       required
                       className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
@@ -418,7 +451,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                       type="text"
                       value={item.duration || ""}
                       onChange={(e) =>
-                        handleItemChange(item.tempId!, "duration", e.target.value)
+                        handleItemChange(
+                          item.tempId!,
+                          "duration",
+                          e.target.value
+                        )
                       }
                       className="block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                       placeholder="e.g., 7 days"

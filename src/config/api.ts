@@ -1,8 +1,7 @@
-import axios from "axios";
+import axios, { AxiosError, AxiosResponse } from "axios";
 
 // Base API URL - replace with your actual API URL
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 // Function to get the access token from localStorage
 const getAccessToken = () => {
@@ -19,28 +18,43 @@ export const api = axios.create({
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-  withCredentials: true, // Enable credentials for CORS
+  // withCredentials: true, // Temporarily disable credentials for debugging
 });
 
 // Add request interceptor to add token to all requests except login
 api.interceptors.request.use(
   (config) => {
-    // Log the request details
+    // Skip adding token for login and register endpoints
+    if (
+      config.url?.includes("/api/auth/login") ||
+      config.url?.includes("/api/auth/register")
+    ) {
+      console.log("API Request (Auth endpoint):", {
+        url: config.url,
+        method: config.method,
+        baseURL: config.baseURL,
+        headers: config.headers,
+      });
+      return config;
+    }
+
+    const token = getAccessToken();
+    
+    // Log the request details with token info
     console.log("API Request:", {
       url: config.url,
       method: config.method,
       baseURL: config.baseURL,
       data: config.data,
+      hasToken: !!token,
+      tokenPreview: token ? `${token.substring(0, 10)}...${token.substring(token.length - 10)}` : null,
+      authHeader: token ? `Bearer ${token.substring(0, 10)}...` : 'No auth header',
     });
 
-    // Skip adding token for login endpoint
-    if (config.url?.includes("/api/auth/login")) {
-      return config;
-    }
-
-    const token = getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      console.warn("No access token found for request to:", config.url);
     }
     return config;
   },
@@ -52,7 +66,7 @@ api.interceptors.request.use(
 
 // Add response interceptor to handle token expiration and errors
 api.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse) => {
     // Log successful response
     console.log("API Success Response:", {
       url: response.config.url,
@@ -61,7 +75,7 @@ api.interceptors.response.use(
     });
     return response;
   },
-  async (error) => {
+  async (error: AxiosError) => {
     if (error.response) {
       // The request was made and the server responded with a status code
       // that falls out of the range of 2xx
@@ -69,14 +83,16 @@ api.interceptors.response.use(
         status: error.response.status,
         data: error.response.data,
         headers: error.response.headers,
+        url: error.config?.url,
       });
 
       if (error.response.status === 401) {
         // Handle unauthorized access (token expired or invalid)
         if (typeof window !== "undefined") {
-          localStorage.removeItem("auth-storage");
-          localStorage.removeItem("user_email");
-          localStorage.removeItem("user_role");
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("user");
+          document.cookie =
+            "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict; Secure";
           // Redirect to login page
           window.location.href = "/login";
         }
@@ -89,6 +105,8 @@ api.interceptors.response.use(
         // if (typeof window !== "undefined") {
         //   window.location.href = "/unauthorized";
         // }
+      } else if (error.response.status >= 500) {
+        console.error("Server error occurred:", error.response.data);
       }
     } else if (error.request) {
       // The request was made but no response was received

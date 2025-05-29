@@ -21,8 +21,12 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [user, setUser] = useState<UserType | null>(null);
   const [organization, setOrganization] = useState<UserType | null>(null);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   useEffect(() => {
+    // Set hydration flag first
+    setIsHydrated(true);
+
     // Get user and organization data after component mounts (client-side)
     setUser(authService.getCurrentUser());
     setOrganization(authService.getOrganization());
@@ -30,14 +34,14 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
 
   const handleLogout = () => {
     // Clear auth data
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem('auth_token');
-      window.localStorage.removeItem('user');
-      window.localStorage.removeItem('organization');
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem("auth_token");
+      window.localStorage.removeItem("user");
+      window.localStorage.removeItem("organization");
     }
-    
+
     // Navigate to login page
-    router.push('/login');
+    router.push("/login");
     router.refresh(); // Force a refresh of the page
   };
 
@@ -122,7 +126,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
               >
                 <div className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md">
                   <User className="h-5 w-5 mr-2 text-gray-400" />
-                  <span>{user?.name || "User"}</span>
+                  <span>{isHydrated ? user?.name || "User" : "User"}</span>
                 </div>
               </button>
 

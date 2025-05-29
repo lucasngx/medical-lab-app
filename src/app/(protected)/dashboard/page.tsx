@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { authService } from "@/services/authService";
+import { useAuth } from "@/contexts/AuthContext";
 import patientService from "@/services/patientService";
 import examinationService from "@/services/examinationService";
 import labTestService from "@/services/labTestService";
@@ -14,9 +14,9 @@ import {
   TestStatus,
   Patient,
   Examination,
-  AssignedTest,
   TestResult,
   Prescription,
+  LabTest,
 } from "@/types";
 import {
   UserPlus,
@@ -34,7 +34,7 @@ interface DashboardStats {
   pendingTests: number;
   completedTests: number;
   recentExaminations: Examination[];
-  pendingLabTests: AssignedTest[];
+  pendingLabTests: LabTest[];
   recentTestResults: TestResult[];
   recentPrescriptions: Prescription[];
 }
@@ -54,21 +54,20 @@ export default function DashboardPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const { user, isAuthenticated, isHydrated } = useAuth();
 
   useEffect(() => {
-    const currentUser = authService.getCurrentUser();
-    console.log("Current User:", currentUser);
-    if (!currentUser) {
+    if (isHydrated && !isAuthenticated) {
+      console.log("Not authenticated, redirecting to login");
       router.push("/login");
       return;
     }
-  }, [router]);
+  }, [isHydrated, isAuthenticated, router]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const currentUser = authService.getCurrentUser();
-        if (!currentUser) {
+        if (!user) {
           router.push("/login");
           return;
         }
@@ -81,7 +80,7 @@ export default function DashboardPage() {
         let pendingTests = 0;
         let completedTests = 0;
         let recentExaminations: Examination[] = [];
-        let pendingLabTests: AssignedTest[] = [];
+        let pendingLabTests: LabTest[] = [];
         let recentTestResults: TestResult[] = [];
         let recentPrescriptions: Prescription[] = [];
 
@@ -96,14 +95,14 @@ export default function DashboardPage() {
 
         // Fetch examination data for doctors, admins, and receptionists
         if (
-          currentUser.role === "DOCTOR" ||
-          currentUser.role === "ADMIN" ||
-          currentUser.role === "RECEPTIONIST"
+          user.role === "DOCTOR" ||
+          user.role === "ADMIN" ||
+          user.role === "RECEPTIONIST"
         ) {
           try {
             const pendingExams =
               await examinationService.getExaminationsByStatus(
-                ExamStatus.PENDING,
+                ExamStatus.SCHEDULED,
                 0,
                 100
               );
@@ -134,50 +133,36 @@ export default function DashboardPage() {
 
         // Fetch lab test data for technicians, admins, and doctors
         if (
-          currentUser.role === "TECHNICIAN" ||
-          currentUser.role === "ADMIN" ||
-          currentUser.role === "DOCTOR"
+          user.role === "TECHNICIAN" ||
+          user.role === "ADMIN" ||
+          user.role === "DOCTOR"
         ) {
           try {
-            const pendingTestsData =
-              await labTestService.getAssignedTestsByStatus(
-                TestStatus.PENDING,
-                0,
-                100
-              );
-            pendingTests = pendingTestsData.total || 0;
-            pendingLabTests = (pendingTestsData.data || []).slice(0, 5);
+            const labTests = await labTestService.getLabTests(0, 100);
+            pendingLabTests = labTests.data.slice(0, 5);
+            pendingTests = labTests.data.length;
           } catch (error) {
-            console.warn("Failed to fetch pending tests:", error);
+            console.warn("Failed to fetch lab tests:", error);
           }
 
           try {
-            const completedTestsData =
-              await labTestService.getAssignedTestsByStatus(
-                TestStatus.COMPLETED,
-                0,
-                100
-              );
-            completedTests = completedTestsData.total || 0;
+            const labTests = await labTestService.getLabTests(0, 100);
+            completedTests = labTests.data.length;
           } catch (error) {
             console.warn("Failed to fetch completed tests:", error);
           }
 
           try {
-            const recentResults = await labTestService.getTestResults({
-              page: 0,
-              size: 5,
-              sortBy: "date",
-              direction: "desc",
-            });
-            recentTestResults = recentResults.data || [];
+            const labTests = await labTestService.getLabTests(0, 5);
+            // Since we don't have test results yet, we'll use lab tests as a placeholder
+            recentTestResults = [];
           } catch (error) {
             console.warn("Failed to fetch test results:", error);
           }
         }
 
         // Fetch prescription data for doctors and admins
-        if (currentUser.role === "DOCTOR" || currentUser.role === "ADMIN") {
+        if (user.role === "DOCTOR" || user.role === "ADMIN") {
           try {
             const prescriptionData = await prescriptionService.getPrescriptions(
               0,
@@ -202,27 +187,16 @@ export default function DashboardPage() {
           recentPrescriptions,
         });
       } catch (error) {
-        console.error("Failed to fetch dashboard data:", error);
-        // Set empty stats on error
-        setDashboardStats({
-          totalPatients: 0,
-          recentPatients: [],
-          pendingExaminations: 0,
-          completedExaminations: 0,
-          pendingTests: 0,
-          completedTests: 0,
-          recentExaminations: [],
-          pendingLabTests: [],
-          recentTestResults: [],
-          recentPrescriptions: [],
-        });
+        console.error("Error fetching dashboard data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchDashboardData();
-  }, [router]);
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user, router]);
 
   if (isLoading) {
     return (

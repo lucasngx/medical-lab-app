@@ -7,8 +7,8 @@ import { Plus, Search } from "lucide-react";
 import { TestResult, ResultStatus, ExamStatus, Examination } from "@/types";
 import { formatDateToLocale } from "@/utils/dateUtils";
 import { usePagination } from "@/hooks/usePagination";
-import labTestService from "@/services/labTestService";
-import api from "@/services/api";
+import testResultService from "@/services/testResultService";
+import examinationService from "@/services/examinationService";
 
 export default function TestResultsPage() {
   const [testResults, setTestResults] = useState<TestResult[]>([]);
@@ -20,7 +20,6 @@ export default function TestResultsPage() {
   const [examinations, setExaminations] = useState<Examination[]>([]);
   const [totalExams, setTotalExams] = useState(0);
 
-
   const pagination = usePagination({
     totalItems: totalResults,
     initialPage: 1,
@@ -31,15 +30,10 @@ export default function TestResultsPage() {
     const fetchTestResults = async () => {
       setIsLoading(true);
       try {
-        const params: Record<string, string | number> = {
-          page: pagination.currentPage,
-          limit: pagination.itemsPerPage,
-        };
-        if (statusFilter) {
-          params.status = statusFilter;
-        }
-
-        const response = await labTestService.getRecentTestResults(1, 100);
+        const response = await testResultService.getTestResults(
+          pagination.currentPage - 1, // API uses 0-based pagination
+          pagination.itemsPerPage
+        );
 
         setTestResults(response.data);
         setTotalResults(response.total);
@@ -64,22 +58,13 @@ export default function TestResultsPage() {
     }
   };
 
-    useEffect(() => {
+  useEffect(() => {
     const fetchExaminations = async () => {
       setIsLoading(true);
       try {
-        const params: Record<string, string | number> = {
-          page: pagination.currentPage,
-          limit: pagination.itemsPerPage,
-          status: ExamStatus.IN_PROGRESS
-        };
-        if (statusFilter) {
-          params.status = statusFilter;
-        }
-
-        const response = await api.get<{ data: Examination[]; total: number }>(
-          "/examinations",
-          params
+        const response = await examinationService.getExaminations(
+          pagination.currentPage - 1, // API uses 0-based pagination
+          pagination.itemsPerPage
         );
 
         console.log("Fetched examinations:", response.data);
@@ -107,10 +92,13 @@ export default function TestResultsPage() {
     }
   };
 
-  const filteredResults = testResults.filter((result) =>
-    result.technician?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    result.resultData.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    result.comment?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredResults = testResults.filter(
+    (result) =>
+      result.technician?.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      result.resultData.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      result.comment?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (isLoading) {
@@ -121,150 +109,166 @@ export default function TestResultsPage() {
     );
   }
 
-  return (<>
-     
-    <div className="p-6">
-     <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Test Results</h1>
-        <p className="text-gray-600 mt-1">View and manage laboratory test results</p>
-      </div>
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-4 sm:flex sm:items-center sm:justify-between border-b">
-          <div className="flex items-center space-x-4">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as ExamStatus | "")}
-              className="block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-            >
-              <option value="">All Statuses</option>
-              {Object.values(ExamStatus).map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            onClick={() => router.push("/examinations/new")}
-            className="mt-3 sm:mt-0 w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            New Examination
-          </button>
+  return (
+    <>
+      <div className="p-6">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Test Results</h1>
+          <p className="text-gray-600 mt-1">
+            View and manage laboratory test results
+          </p>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Exam Info
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Patient
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Doctor
-                </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th scope="col" className="relative px-6 py-3">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {examinations.map((examination) => (
-                <tr
-                  key={examination.id}
-                  className="hover:bg-gray-50 cursor-pointer"
-                  // onClick={() => router.push(`/examinations/${examination.id}`)}
-                >
-                  <td className="px-6 py-4">
-                    <div className="text-sm font-medium text-blue-600">
-                      Examination #{examination.id}
-                    </div>
-                    <div className="text-sm text-gray-500 mt-1">
-                      {formatDateToLocale(examination.examDate)}
-                    </div>
-                    {examination.symptoms && (
-                      <div className="text-sm text-gray-500 mt-1 line-clamp-1">
-                        {examination.symptoms}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {examination.patient?.name || examination.patientId}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {examination.doctor?.name || examination.doctorId}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor1(
-                        examination.status
-                      )}`}
-                    >
-                      {examination.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end space-x-3">
-                      <Link
-              href="/test-results/new"
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="p-4 sm:flex sm:items-center sm:justify-between border-b">
+            <div className="flex items-center space-x-4">
+              <select
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as ExamStatus | "")
+                }
+                className="block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              >
+                <option value="">All Statuses</option>
+                {Object.values(ExamStatus).map((status) => (
+                  <option key={status} value={status}>
+                    {status}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={() => router.push("/examinations/new")}
+              className="mt-3 sm:mt-0 w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              New Test Result
-            </Link>
-                    </div>
-                  </td>
+              New Examination
+            </button>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Exam Info
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Patient
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Doctor
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  >
+                    Status
+                  </th>
+                  <th scope="col" className="relative px-6 py-3">
+                    <span className="sr-only">Actions</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {examinations.length === 0 && !isLoading && (
-          <div className="text-center py-10">
-            <p className="text-gray-500">No examinations found</p>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {examinations.map((examination) => (
+                  <tr
+                    key={examination.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    // onClick={() => router.push(`/examinations/${examination.id}`)}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-blue-600">
+                        Examination #{examination.id}
+                      </div>
+                      <div className="text-sm text-gray-500 mt-1">
+                        {formatDateToLocale(examination.examDate)}
+                      </div>
+                      {examination.symptoms && (
+                        <div className="text-sm text-gray-500 mt-1 line-clamp-1">
+                          {examination.symptoms}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {examination.patient?.name || examination.patientId}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {examination.doctor?.name || examination.doctorId}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor1(
+                          examination.status
+                        )}`}
+                      >
+                        {examination.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end space-x-3">
+                        <Link
+                          href="/test-results/new"
+                          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          New Test Result
+                        </Link>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        )}
 
-        {totalExams > pagination.itemsPerPage && (
-          <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-gray-700">
-                Page {pagination.currentPage} of {pagination.totalPages}
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => pagination.prevPage()}
-                  disabled={pagination.currentPage === 1}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Previous
-                </button>
-                <button
-                  onClick={() => pagination.nextPage()}
-                  disabled={pagination.currentPage >= pagination.totalPages}
-                  className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next
-                </button>
+          {examinations.length === 0 && !isLoading && (
+            <div className="text-center py-10">
+              <p className="text-gray-500">No examinations found</p>
+            </div>
+          )}
+
+          {totalExams > pagination.itemsPerPage && (
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-700">
+                  Page {pagination.currentPage} of {pagination.totalPages}
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => pagination.prevPage()}
+                    disabled={pagination.currentPage === 1}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => pagination.nextPage()}
+                    disabled={pagination.currentPage >= pagination.totalPages}
+                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-    </div>
-    
-    {/* <div className="p-6">
+
+      {/* <div className="p-6">
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex flex-wrap gap-4 items-center justify-between">
           <div className="flex-1 min-w-[200px] max-w-xs">
@@ -460,5 +464,3 @@ export default function TestResultsPage() {
     </>
   );
 }
-
-

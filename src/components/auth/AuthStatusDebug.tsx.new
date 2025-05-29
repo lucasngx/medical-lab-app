@@ -1,0 +1,111 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+
+export default function AuthStatusDebug() {
+  const auth = useAuth();
+  const [tokenInfo, setTokenInfo] = useState<{
+    hasToken: boolean;
+    tokenPreview: string;
+    hasUser: boolean;
+    localUserPreview: string;
+  }>({
+    hasToken: false,
+    tokenPreview: "Loading...",
+    hasUser: false,
+    localUserPreview: "Loading...",
+  });
+  const [isLocalStorageChecked, setIsLocalStorageChecked] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("auth_token");
+      const storedUser = localStorage.getItem("user");
+      let userPreview = "No user data";
+
+      if (storedUser) {
+        try {
+          const parsedUser = JSON.parse(storedUser);
+          userPreview = parsedUser
+            ? `${parsedUser.name || parsedUser.email || "Unknown"} (${
+                parsedUser.role || "No role"
+              })`
+            : "Invalid user data";
+        } catch {
+          userPreview = "Invalid JSON";
+        }
+      }
+
+      setTokenInfo({
+        hasToken: !!token,
+        tokenPreview: token
+          ? `${token.substring(0, 10)}...${token.substring(token.length - 10)}`
+          : "No token",
+        hasUser: !!storedUser,
+        localUserPreview: userPreview,
+      });
+      
+      setIsLocalStorageChecked(true);
+    }
+  }, []);
+
+  // Always render the debug component, but show loading state until hydrated
+  if (!isLocalStorageChecked) {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
+        <h3 className="text-sm font-medium text-yellow-800 mb-2">
+          🔍 Authentication Debug Info
+        </h3>
+        <div className="text-xs space-y-1">
+          <div>Loading authentication status...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
+      <h3 className="text-sm font-medium text-yellow-800 mb-2">
+        🔍 Authentication Debug Info
+      </h3>
+      <div className="text-xs space-y-1">
+        <div>Context Hydrated: {auth.isHydrated ? "✅ Yes" : "❌ No"}</div>
+        <div>
+          Context User:{" "}
+          {auth.user
+            ? `${auth.user.name} (${auth.user.role})`
+            : "❌ No user in Context"}
+        </div>
+        <div>Context Token: {auth.token ? "✅ Present" : "❌ Missing"}</div>
+        <div>
+          Context Auth Status:{" "}
+          {auth.isAuthenticated
+            ? "✅ Authenticated"
+            : "❌ Not Authenticated"}
+        </div>
+        <hr className="my-1 border-yellow-200" />
+        <div>
+          Local Storage Token:{" "}
+          {tokenInfo.hasToken ? "✅ Present" : "❌ Missing"}
+        </div>
+        <div>Token Preview: {tokenInfo.tokenPreview}</div>
+        <div>
+          Local Storage User: {tokenInfo.hasUser ? "✅ Present" : "❌ Missing"}
+        </div>
+        <div>Local User Preview: {tokenInfo.localUserPreview}</div>
+      </div>
+      {!auth.isHydrated && (
+        <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
+          <strong>⚠️ Context state not hydrated!</strong> Refresh the page to hydrate.
+        </div>
+      )}
+      {!tokenInfo.hasToken && (
+        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+          <strong>⚠️ No authentication token found!</strong> Please log in
+          again.
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,18 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import { authService } from "@/services/authService";
 
-import { usePathname } from 'next/navigation';
-import { authService } from '@/services/authService';
-
-export default function MainLayout({ children }: { children: React.ReactNode }) {
+export default function MainLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const pathname = usePathname();
 
   // List of public paths that don't require authentication
-  const publicPaths = ['/login'];
+  const publicPaths = ["/login"];
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -32,7 +35,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       </div>
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header onToggleSidebar={toggleSidebar} />
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-4">{children}</main>
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-4">
+          {children}
+        </main>
       </div>
     </div>
   );

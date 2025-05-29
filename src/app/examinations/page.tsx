@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Examination, ExamStatus } from "@/types";
 import { formatDateToLocale } from "@/utils/dateUtils";
 import { usePagination } from "@/hooks/usePagination";
-import api from "@/services/api";
+import examinationService from "@/services/examinationService";
 
 const ExaminationsPage = () => {
   const [examinations, setExaminations] = useState<Examination[]>([]);
@@ -24,18 +24,23 @@ const ExaminationsPage = () => {
     const fetchExaminations = async () => {
       setIsLoading(true);
       try {
-        const params: Record<string, string | number> = {
-          page: pagination.currentPage,
-          limit: pagination.itemsPerPage,
-        };
+        let response;
+
         if (statusFilter) {
-          params.status = statusFilter;
+          // Use status-specific service method
+          response = await examinationService.getExaminationsByStatus(
+            statusFilter,
+            pagination.currentPage - 1, // Convert to 0-based
+            pagination.itemsPerPage
+          );
+        } else {
+          // Use general examinations service method
+          response = await examinationService.getExaminations(
+            pagination.currentPage - 1, // Convert to 0-based
+            pagination.itemsPerPage
+          );
         }
 
-        const response = await api.get<{ data: Examination[]; total: number }>(
-          "/examinations",
-          params
-        );
         setExaminations(response.data);
         setTotalExams(response.total);
       } catch (error) {
@@ -79,7 +84,9 @@ const ExaminationsPage = () => {
           <div className="flex items-center space-x-4">
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as ExamStatus | "")}
+              onChange={(e) =>
+                setStatusFilter(e.target.value as ExamStatus | "")
+              }
               className="block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             >
               <option value="">All Statuses</option>
@@ -102,16 +109,28 @@ const ExaminationsPage = () => {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Exam Info
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Patient
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Doctor
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Status
                 </th>
                 <th scope="col" className="relative px-6 py-3">
@@ -159,8 +178,7 @@ const ExaminationsPage = () => {
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <div className="flex justify-end space-x-3">
-                    </div>
+                    <div className="flex justify-end space-x-3"></div>
                   </td>
                 </tr>
               ))}

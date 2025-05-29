@@ -1,4 +1,4 @@
-import { api } from "@/config/api";
+import api from "@/services/api";
 import { Technician, PaginatedResponse } from "@/types";
 
 const technicianService = {

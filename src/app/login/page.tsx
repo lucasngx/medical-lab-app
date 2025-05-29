@@ -1,13 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { authService } from "@/services/authService";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { api } from "@/config/api";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { login, isAuthenticated, isHydrated } = useAuth();
+  const router = useRouter();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isHydrated && isAuthenticated) {
+      console.log("Already authenticated, redirecting to dashboard");
+      router.push("/dashboard");
+    }
+  }, [isHydrated, isAuthenticated, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -16,20 +29,19 @@ export default function LoginPage() {
     try {
       // Log the state before login attempt
       console.log("Attempting login with:", { email });
-      const response = await authService.login(email, password);
-      console.log("Login response:", response);
+      
+      // Get the raw response from the API
+      const response = await api.post("/api/auth/login", {
+        email,
+        password,
+      });
 
-      // Check localStorage after login
-      const token = window.localStorage.getItem("auth_token");
-      const userData = window.localStorage.getItem("user");
-      console.log("LocalStorage after login:", { token, userData });
+      console.log("Raw login response:", response.data);
 
-      // Verify we have the required data
-      if (!response.token || !response.role) {
-        throw new Error("Invalid login response");
-      }
+      // Now call the login function with the credentials
+      await login(email, password);
 
-      // Immediate navigation using window.location
+      // Get redirect path
       const params = new URLSearchParams(window.location.search);
       const redirectTo = params.get("redirect") || "/dashboard";
       const cleanRedirectPath = decodeURIComponent(redirectTo).replace(
@@ -38,19 +50,35 @@ export default function LoginPage() {
       );
 
       console.log("Login successful, redirecting to:", cleanRedirectPath);
-      window.location.href = "/" + cleanRedirectPath;
-
-      // If navigation doesn't work, force reload as fallback
+      
+      // Use Next.js router for client-side navigation
+      router.push("/" + cleanRedirectPath);
+      
+      // Fallback to window.location if router.push doesn't work
       setTimeout(() => {
-        window.location.href = "/" + cleanRedirectPath;
-      }, 300);
+        if (window.location.pathname === "/login") {
+          console.log("Router navigation failed, using window.location");
+          window.location.href = "/" + cleanRedirectPath;
+        }
+      }, 1000);
     } catch (err) {
+      console.error("Login error:", err);
       setError(
         err instanceof Error ? err.message : "Invalid email or password"
       );
       setIsLoading(false);
     }
   };
+
+  // Don't render the login form if not hydrated yet
+  if (!isHydrated) {
+    return <div>Loading...</div>;
+  }
+
+  // Don't render the login form if already authenticated
+  if (isAuthenticated) {
+    return <div>Redirecting...</div>;
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">

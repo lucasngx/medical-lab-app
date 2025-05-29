@@ -5,8 +5,9 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { LabTest, Patient, Examination } from "@/types";
-import api from "@/services/api";
 import labTestService from "@/services/labTestService";
+import examinationService from "@/services/examinationService";
+import patientService from "@/services/patientService";
 
 interface AssignTestModalProps {
   examinationId?: number;
@@ -15,27 +16,28 @@ interface AssignTestModalProps {
   onClose?: () => void;
 }
 
-interface ApiResponse<T> {
-  data: T[];
-  total: number;
-}
-
 export default function AssignTestModal({
   examinationId,
   preSelectedTestIds,
   onAssign,
   onClose,
 }: AssignTestModalProps) {
-  const [selectedTests, setSelectedTests] = useState<number[]>(preSelectedTestIds || []);
+  const [selectedTests, setSelectedTests] = useState<number[]>(
+    preSelectedTestIds || []
+  );
   const [availableTests, setAvailableTests] = useState<LabTest[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [examinations, setExaminations] = useState<Examination[]>([]);
-  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
-  const [selectedExaminationId, setSelectedExaminationId] = useState<number | null>(examinationId || null);
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
+    null
+  );
+  const [selectedExaminationId, setSelectedExaminationId] = useState<
+    number | null
+  >(examinationId || null);
   const [isLoading, setIsLoading] = useState({
     tests: true,
     patients: false,
-    examinations: false
+    examinations: false,
   });
   const [error, setError] = useState("");
 
@@ -43,28 +45,28 @@ export default function AssignTestModal({
     const fetchTests = async () => {
       try {
         const response = await labTestService.getLabTests(1, 100);
-        if ('data' in response) {
+        if ("data" in response) {
           setAvailableTests(response.data);
         }
       } catch (err) {
         console.error("Failed to fetch lab tests:", err);
         setError("Failed to load available tests");
       } finally {
-        setIsLoading(prev => ({ ...prev, tests: false }));
+        setIsLoading((prev) => ({ ...prev, tests: false }));
       }
     };
 
     const fetchPatients = async () => {
       if (!examinationId) {
-        setIsLoading(prev => ({ ...prev, patients: true }));
+        setIsLoading((prev) => ({ ...prev, patients: true }));
         try {
-          const response = await api.get<ApiResponse<Patient>>("/patients");
+          const response = await patientService.getPatients(0, 100);
           setPatients(response.data);
         } catch (err) {
           console.error("Failed to fetch patients:", err);
           setError("Failed to load patients");
         } finally {
-          setIsLoading(prev => ({ ...prev, patients: false }));
+          setIsLoading((prev) => ({ ...prev, patients: false }));
         }
       }
     };
@@ -76,15 +78,17 @@ export default function AssignTestModal({
   useEffect(() => {
     const fetchExaminations = async () => {
       if (selectedPatientId) {
-        setIsLoading(prev => ({ ...prev, examinations: true }));
+        setIsLoading((prev) => ({ ...prev, examinations: true }));
         try {
-          const response = await api.get<ApiResponse<Examination>>(`/examinations?patientId=${selectedPatientId}`);
-          setExaminations(response.data);
+          const response = await examinationService.getExaminationsByPatient(
+            selectedPatientId
+          );
+          setExaminations(response);
         } catch (err) {
           console.error("Failed to fetch examinations:", err);
           setError("Failed to load examinations");
         } finally {
-          setIsLoading(prev => ({ ...prev, examinations: false }));
+          setIsLoading((prev) => ({ ...prev, examinations: false }));
         }
       }
     };
@@ -95,9 +99,9 @@ export default function AssignTestModal({
   }, [selectedPatientId]);
 
   const handleTestToggle = (testId: number) => {
-    setSelectedTests(prev =>
+    setSelectedTests((prev) =>
       prev.includes(testId)
-        ? prev.filter(id => id !== testId)
+        ? prev.filter((id) => id !== testId)
         : [...prev, testId]
     );
   };
@@ -153,7 +157,9 @@ export default function AssignTestModal({
                   ))}
                 </select>
                 {isLoading.patients && (
-                  <div className="text-sm text-gray-500">Loading patients...</div>
+                  <div className="text-sm text-gray-500">
+                    Loading patients...
+                  </div>
                 )}
               </div>
 
@@ -164,22 +170,29 @@ export default function AssignTestModal({
                   </label>
                   <select
                     value={selectedExaminationId || ""}
-                    onChange={(e) => setSelectedExaminationId(Number(e.target.value))}
+                    onChange={(e) =>
+                      setSelectedExaminationId(Number(e.target.value))
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"
                     disabled={isLoading.examinations}
                   >
                     <option value="">Select an examination...</option>
                     {examinations.map((exam) => (
                       <option key={exam.id} value={exam.id}>
-                        {new Date(exam.examDate).toLocaleDateString()} - {exam.symptoms.slice(0, 50)}...
+                        {new Date(exam.examDate).toLocaleDateString()} -{" "}
+                        {exam.symptoms.slice(0, 50)}...
                       </option>
                     ))}
                   </select>
                   {isLoading.examinations && (
-                    <div className="text-sm text-gray-500">Loading examinations...</div>
+                    <div className="text-sm text-gray-500">
+                      Loading examinations...
+                    </div>
                   )}
                   {!isLoading.examinations && examinations.length === 0 && (
-                    <div className="text-sm text-red-500">No examinations found for this patient</div>
+                    <div className="text-sm text-red-500">
+                      No examinations found for this patient
+                    </div>
                   )}
                 </div>
               )}
@@ -212,13 +225,19 @@ export default function AssignTestModal({
                       htmlFor={`test-${test.id}`}
                       className="flex-grow cursor-pointer"
                     >
-                      <div className="font-medium text-gray-900">{test.name}</div>
+                      <div className="font-medium text-gray-900">
+                        {test.name}
+                      </div>
                       <div className="text-sm text-gray-500 mt-1">
                         {test.description}
                       </div>
                       <div className="text-sm text-gray-500 mt-1">
-                        <span className="inline-block mr-4">Unit: {test.unit}</span>
-                        <span>Range: {test.refRange.min} - {test.refRange.max}</span>
+                        <span className="inline-block mr-4">
+                          Unit: {test.unit}
+                        </span>
+                        <span>
+                          Range: {test.refRange.min} - {test.refRange.max}
+                        </span>
                       </div>
                     </label>
                   </div>
@@ -243,10 +262,18 @@ export default function AssignTestModal({
           </button>
           <button
             onClick={handleAssign}
-            disabled={selectedTests.length === 0 || !selectedExaminationId || isLoading.tests}
+            disabled={
+              selectedTests.length === 0 ||
+              !selectedExaminationId ||
+              isLoading.tests
+            }
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            {selectedTests.length === 0 ? 'Select Tests to Assign' : `Assign ${selectedTests.length} Test${selectedTests.length > 1 ? 's' : ''}`}
+            {selectedTests.length === 0
+              ? "Select Tests to Assign"
+              : `Assign ${selectedTests.length} Test${
+                  selectedTests.length > 1 ? "s" : ""
+                }`}
           </button>
         </div>
       </div>

@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from "react";
 import { Medication } from "@/types";
-import prescriptionService from "@/services/prescriptionService";
+import medicationService from "@/services/medicationService";
 import { Search, Plus } from "lucide-react";
 
 interface MedicationSelectorProps {
@@ -26,7 +26,7 @@ export default function MedicationSelector({
   useEffect(() => {
     const loadMedications = async () => {
       try {
-        const response = await prescriptionService.getMedications(1, 100);
+        const response = await medicationService.getMedications(1, 100);
         setMedications(response.data);
         setFilteredMedications(
           response.data.filter((med) => !excludeIds.includes(med.id))
@@ -52,9 +52,8 @@ export default function MedicationSelector({
 
     try {
       setIsLoading(true);
-      const results = await prescriptionService.searchMedications(
-        searchTerm.trim(),
-        20
+      const results = await medicationService.searchMedications(
+        searchTerm.trim()
       );
       setFilteredMedications(
         results.filter((med) => !excludeIds.includes(med.id))
