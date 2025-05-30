@@ -67,136 +67,35 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        if (!user) {
-          router.push("/login");
-          return;
-        }
+        // Fetch examination data
+        const pendingExams = await examinationService.getExaminationsByStatus(
+          ExamStatus.SCHEDULED,
+          0,
+          100
+        );
 
-        // Initialize with safe defaults
-        let totalPatients = 0;
-        let recentPatients: Patient[] = [];
-        let pendingExaminations = 0;
-        let completedExaminations = 0;
-        let pendingTests = 0;
-        let completedTests = 0;
-        let recentExaminations: Examination[] = [];
-        let pendingLabTests: LabTest[] = [];
-        let recentTestResults: TestResult[] = [];
-        let recentPrescriptions: Prescription[] = [];
+        const completedExams = await examinationService.getExaminationsByStatus(
+          ExamStatus.COMPLETED,
+          0,
+          100
+        );
 
-        // Fetch patient data with error handling
-        try {
-          const patientData = await patientService.getPatients(0, 5);
-          totalPatients = patientData.total || 0;
-          recentPatients = patientData.data || [];
-        } catch (error) {
-          console.warn("Failed to fetch patients:", error);
-        }
-
-        // Fetch examination data for doctors, admins, and receptionists
-        if (
-          user.role === "DOCTOR" ||
-          user.role === "ADMIN" ||
-          user.role === "RECEPTIONIST"
-        ) {
-          try {
-            const pendingExams =
-              await examinationService.getExaminationsByStatus(
-                ExamStatus.SCHEDULED,
-                0,
-                100
-              );
-            pendingExaminations = pendingExams.total || 0;
-          } catch (error) {
-            console.warn("Failed to fetch pending examinations:", error);
-          }
-
-          try {
-            const completedExams =
-              await examinationService.getExaminationsByStatus(
-                ExamStatus.COMPLETED,
-                0,
-                100
-              );
-            completedExaminations = completedExams.total || 0;
-          } catch (error) {
-            console.warn("Failed to fetch completed examinations:", error);
-          }
-
-          try {
-            const recentExams = await examinationService.getExaminations(0, 5);
-            recentExaminations = recentExams.data || [];
-          } catch (error) {
-            console.warn("Failed to fetch recent examinations:", error);
-          }
-        }
-
-        // Fetch lab test data for technicians, admins, and doctors
-        if (
-          user.role === "TECHNICIAN" ||
-          user.role === "ADMIN" ||
-          user.role === "DOCTOR"
-        ) {
-          try {
-            const labTests = await labTestService.getLabTests(0, 100);
-            pendingLabTests = labTests.data.slice(0, 5);
-            pendingTests = labTests.data.length;
-          } catch (error) {
-            console.warn("Failed to fetch lab tests:", error);
-          }
-
-          try {
-            const labTests = await labTestService.getLabTests(0, 100);
-            completedTests = labTests.data.length;
-          } catch (error) {
-            console.warn("Failed to fetch completed tests:", error);
-          }
-
-          try {
-            const labTests = await labTestService.getLabTests(0, 5);
-            // Since we don't have test results yet, we'll use lab tests as a placeholder
-            recentTestResults = [];
-          } catch (error) {
-            console.warn("Failed to fetch test results:", error);
-          }
-        }
-
-        // Fetch prescription data for doctors and admins
-        if (user.role === "DOCTOR" || user.role === "ADMIN") {
-          try {
-            const prescriptionData = await prescriptionService.getPrescriptions(
-              0,
-              5
-            );
-            recentPrescriptions = prescriptionData.data || [];
-          } catch (error) {
-            console.warn("Failed to fetch prescriptions:", error);
-          }
-        }
+        const recentExams = await examinationService.getExaminations(0, 5);
 
         setDashboardStats({
-          totalPatients,
-          recentPatients,
-          pendingExaminations,
-          completedExaminations,
-          pendingTests,
-          completedTests,
-          recentExaminations,
-          pendingLabTests,
-          recentTestResults,
-          recentPrescriptions,
+          pendingExaminations: pendingExams.total || 0,
+          completedExaminations: completedExams.total || 0,
+          recentExaminations: recentExams.data || [],
         });
       } catch (error) {
-        console.error("Error fetching dashboard data:", error);
+        console.error("Failed to fetch dashboard data:", error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (user) {
-      fetchDashboardData();
-    }
-  }, [user, router]);
+    fetchDashboardData();
+  }, []);
 
   if (isLoading) {
     return (

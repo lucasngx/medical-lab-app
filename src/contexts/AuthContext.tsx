@@ -18,6 +18,7 @@ interface AuthContextType {
   ) => Promise<void>;
   logout: () => void;
   isHydrated: boolean;
+  hasRole: (roles: Role | Role[]) => boolean;
 }
 
 interface DecodedToken {
@@ -45,23 +46,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (savedToken && savedUserStr) {
           const savedUser = JSON.parse(savedUserStr);
-          setUser(savedUser);
-          setToken(savedToken);
-          setIsAuthenticated(true);
           
-          // Set the token in API headers
-          api.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+          // Validate token expiration
+          try {
+            const decodedToken = jwtDecode<DecodedToken>(savedToken);
+            const currentTime = Math.floor(Date.now() / 1000);
+            
+            if (decodedToken.exp && decodedToken.exp < currentTime) {
+              throw new Error("Token expired");
+            }
+            
+            setUser(savedUser);
+            setToken(savedToken);
+            setIsAuthenticated(true);
+            
+            // Set the token in API headers
+            api.defaults.headers.common['Authorization'] = `Bearer ${savedToken}`;
+          } catch (error) {
+            console.error("Token validation failed:", error);
+            // Clear invalid token
+            localStorage.removeItem("auth_token");
+            localStorage.removeItem("user");
+            delete api.defaults.headers.common['Authorization'];
+          }
         }
       } catch (error) {
         console.error("Error loading auth from localStorage:", error);
         // Clear corrupted data
         localStorage.removeItem("auth_token");
         localStorage.removeItem("user");
+        delete api.defaults.headers.common['Authorization'];
       }
 
       setIsHydrated(true);
     }
   }, []);
+
+  // Role-based permission check
+  const hasRole = (roles: Role | Role[]): boolean => {
+    if (!user) return false;
+    if (Array.isArray(roles)) {
+      return roles.includes(user.role);
+    }
+    return user.role === roles;
+  };
 
   // Login function
   const login = async (email: string, password: string, rememberMe = false) => {
@@ -99,8 +127,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         id: Number(id),
         email: userEmail,
         name,
-        role: role as Role, // Cast the role string to Role enum
-        organizationId: 0, // This will be set when we have organization data
+        role: role as Role,
+        organizationId: 0,
         phone: phone || undefined,
         department: department || undefined,
         specialization: specialization || undefined,
@@ -110,7 +138,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log("Created user data:", userData);
 
       // Set the token in API headers
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      if (token) {
+        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        console.log("Set API authorization header:", {
+          hasToken: !!token,
+          tokenPreview: `${token.substring(0, 10)}...${token.substring(token.length - 10)}`,
+          headers: api.defaults.headers
+        });
+      }
 
       // Save to state
       setUser(userData);
@@ -120,11 +155,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Save to localStorage and cookies
       localStorage.setItem("auth_token", token);
       localStorage.setItem("user", JSON.stringify(userData));
-      document.cookie = `auth_token=${token}; path=/`;
+      document.cookie = `auth_token=${token}; path=/; max-age=86400; SameSite=Strict; Secure`;
 
       if (rememberMe) {
         localStorage.setItem("saved_email", email);
-        localStorage.setItem("saved_password", password); // Note: consider security implications
+        localStorage.setItem("saved_password", password);
       } else {
         localStorage.removeItem("saved_email");
         localStorage.removeItem("saved_password");
@@ -152,12 +187,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Clear from localStorage and cookies
     localStorage.removeItem("auth_token");
     localStorage.removeItem("user");
-    document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    document.cookie = "auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Strict; Secure";
 
     // Clear API headers
     delete api.defaults.headers.common['Authorization'];
-
-    // Don't clear saved credentials if we want to keep "remember me" functionality
   };
 
   const value = {
@@ -169,6 +202,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login,
     logout,
     isHydrated,
+    hasRole,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

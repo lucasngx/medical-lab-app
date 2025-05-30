@@ -4,7 +4,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Examination, ExamStatus, Patient, LabTest } from "@/types";
+import { Examination, ExamStatus, Patient, LabTest, Role } from "@/types";
 import examinationService from "@/services/examinationService";
 import patientService from "@/services/patientService";
 import labTestService from "@/services/labTestService";
@@ -12,6 +12,7 @@ import AssignTestModal from "@/components/examinations/AssignTestModal";
 import AuthStatusDebug from "@/components/auth/AuthStatusDebug";
 import api from "@/services/api";
 import { useAuth } from "@/contexts/AuthContext";
+import assignedTestService from "@/services/assignedTestService";
 
 interface ExaminationFormProps {
   examinationId?: number;
@@ -25,7 +26,7 @@ export default function ExaminationForm({
   onSuccess,
 }: ExaminationFormProps) {
   const router = useRouter();
-  const { user, isAuthenticated, isHydrated } = useAuth();
+  const { user, isAuthenticated, isHydrated, hasRole } = useAuth();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -86,7 +87,7 @@ export default function ExaminationForm({
 
   const [formData, setFormData] = useState<Partial<Examination>>({
     patientId: patientId || 0,
-    doctorId: user?.id || 0,
+    doctorId: 0,
     examDate: new Date().toISOString().split("T")[0],
     symptoms: "",
     diagnosis: "",
@@ -186,19 +187,9 @@ export default function ExaminationForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!isHydrated) {
-      setError("Please wait while we load your authentication status...");
-      return;
-    }
-
-    if (!isAuthenticated) {
+    
+    if (!isAuthenticated || !user) {
       setError("Please log in to create an examination.");
-      return;
-    }
-
-    if (!user?.id) {
-      setError("Authentication error: Missing user ID");
       return;
     }
 
@@ -217,8 +208,28 @@ export default function ExaminationForm({
       return;
     }
 
+    if (!user.id) {
+      setError("Authentication error: Missing user ID");
+      return;
+    }
+
+    if (!formData.examDate) {
+      setError("Please select an examination date");
+      return;
+    }
+
     setIsLoading(true);
     setError("");
+
+    // Debug logging
+    console.log("Form submission state:", {
+      isAuthenticated,
+      user,
+      userRole: user.role,
+      formData,
+      authHeader: api.defaults.headers.common['Authorization'],
+      hasToken: !!api.defaults.headers.common['Authorization']
+    });
 
     try {
       let savedExamination: Examination;
@@ -234,17 +245,24 @@ export default function ExaminationForm({
       } else {
         // Create new examination using logged-in user as doctor
         const examinationData = {
-          patientId: formData.patientId!,
+          patientId: formData.patientId,
           doctorId: user.id,
-          examDate: formData.examDate!,
-          examinationDate: formData.examDate!, // Backend expects this field name
-          symptoms: formData.symptoms!,
-          diagnosis: formData.diagnosis!,
+          examDate: formData.examDate,
+          examinationDate: formData.examDate, // Set both fields to the same value
+          symptoms: formData.symptoms,
+          diagnosis: formData.diagnosis,
           notes: formData.notes || "",
           status: ExamStatus.SCHEDULED,
         };
 
-        console.log("Creating examination with data:", examinationData);
+        console.log("Creating examination with data:", {
+          ...examinationData,
+          userRole: user.role,
+          isAuthenticated,
+          hasToken: !!api.defaults.headers.common['Authorization'],
+          authHeader: api.defaults.headers.common['Authorization']
+        });
+
         savedExamination = await examinationService.createExamination(examinationData);
         newExaminationId = savedExamination.id;
       }
@@ -253,7 +271,7 @@ export default function ExaminationForm({
       if (selectedTests.length > 0 && newExaminationId) {
         await Promise.all(
           selectedTests.map(async (testId) => {
-            await api.post("/assigned-tests", {
+            await assignedTestService.assignLabTest({
               examinationId: newExaminationId,
               labTestId: testId,
             });
@@ -269,17 +287,12 @@ export default function ExaminationForm({
     } catch (err) {
       console.error("Failed to save examination:", err);
 
-      // Provide more specific error messages based on the error type
       if (err instanceof Error && err.message.includes("403")) {
-        setError(
-          "Access denied. You don't have permission to create examinations. Please check your login status and role permissions."
-        );
+        setError("Access denied. You don't have permission to create examinations. Please check your login status.");
       } else if (err instanceof Error && err.message.includes("401")) {
         setError("Authentication required. Please log in again.");
       } else if (err instanceof Error && err.message.includes("400")) {
-        setError(
-          "Invalid data provided. Please check all required fields are filled correctly."
-        );
+        setError("Invalid data provided. Please check all required fields are filled correctly.");
       } else {
         setError("Failed to save examination. Please try again.");
       }
@@ -359,6 +372,62 @@ export default function ExaminationForm({
         </select>
       </div>
 
+      {/* Symptoms */}
+      <div>
+        <label
+          htmlFor="symptoms"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Symptoms
+        </label>
+        <textarea
+          id="symptoms"
+          name="symptoms"
+          value={formData.symptoms || ""}
+          onChange={handleChange}
+          rows={3}
+          className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          required
+        />
+      </div>
+
+      {/* Diagnosis */}
+      <div>
+        <label
+          htmlFor="diagnosis"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Diagnosis
+        </label>
+        <textarea
+          id="diagnosis"
+          name="diagnosis"
+          value={formData.diagnosis || ""}
+          onChange={handleChange}
+          rows={3}
+          className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+          required
+        />
+      </div>
+
+      {/* Notes */}
+      <div>
+        <label
+          htmlFor="notes"
+          className="block text-sm font-medium text-gray-700"
+        >
+          Notes
+        </label>
+        <textarea
+          id="notes"
+          name="notes"
+          value={formData.notes || ""}
+          onChange={handleChange}
+          rows={3}
+          className="mt-1 block w-full rounded-md border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+        />
+      </div>
+
       {/* Lab Tests Selection */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -376,7 +445,7 @@ export default function ExaminationForm({
               />
               <label
                 htmlFor={`test-${test.id}`}
-                className="ml-2 block text-sm text-gray-900"
+                className="ml-2 text-sm text-gray-700"
               >
                 {test.name}
               </label>
@@ -385,97 +454,12 @@ export default function ExaminationForm({
         </div>
       </div>
 
-      <div>
-        <label
-          htmlFor="examDate"
-          className="block text-sm font-medium text-gray-700"
-        >
-          Examination Date
-        </label>
-        <input
-          type="date"
-          id="examDate"
-          name="examDate"
-          value={formData.examDate || ""}
-          onChange={handleChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-          required
-        />
-      </div>
-
-      <div>
-        <label
-          htmlFor="symptoms"
-          className="block text-sm font-medium text-gray-700"
-        >
-          Symptoms
-        </label>
-        <textarea
-          id="symptoms"
-          name="symptoms"
-          rows={3}
-          value={formData.symptoms || ""}
-          onChange={handleChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-          required
-        />
-      </div>
-
-      <div>
-        <label
-          htmlFor="diagnosis"
-          className="block text-sm font-medium text-gray-700"
-        >
-          Diagnosis
-        </label>
-        <textarea
-          id="diagnosis"
-          name="diagnosis"
-          rows={3}
-          value={formData.diagnosis || ""}
-          onChange={handleChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-          required
-        />
-      </div>
-
-      <div>
-        <label
-          htmlFor="notes"
-          className="block text-sm font-medium text-gray-700"
-        >
-          Notes
-        </label>
-        <textarea
-          id="notes"
-          name="notes"
-          rows={3}
-          value={formData.notes || ""}
-          onChange={handleChange}
-          className="mt-1 block w-full rounded-md border border-gray-300 py-2 px-3 focus:border-blue-500 focus:outline-none focus:ring-blue-500 sm:text-sm"
-        />
-      </div>
-
-      <div className="flex justify-between">
-        <button
-          type="submit"
-          className="inline-flex justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-        >
-          {isLoading
-            ? "Saving..."
-            : isEditing
-            ? "Update Examination"
-            : "Create Examination"}
-        </button>
-      </div>
-
-      {showAssignModal && examinationId && (
-        <AssignTestModal
-          examinationId={examinationId}
-          onAssign={() => {}}
-          onClose={() => setShowAssignModal(false)}
-        />
-      )}
+      <button
+        type="submit"
+        className="mt-4 w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600"
+      >
+        {isLoading ? "Submitting..." : "Submit"}
+      </button>
     </form>
   );
 }

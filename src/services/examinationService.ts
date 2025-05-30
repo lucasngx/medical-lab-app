@@ -59,13 +59,25 @@ const examinationService = {
     page: number = 0,
     limit: number = 10
   ): Promise<PaginatedResponse<Examination>> => {
-    const response = await api.get<PaginatedResponse<Examination>>(
-      `/api/examinations/status/${status}`,
-      {
-        params: { page, limit },
+    try {
+      const response = await api.get<PaginatedResponse<Examination>>(
+        `/api/examinations/status/${status}`,
+        {
+          params: { page, limit }
+        }
+      );
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        console.error("Error fetching examinations by status:", {
+          status: error.response?.status,
+          data: error.response?.data,
+          message: error.message
+        });
+        throw new Error(`Failed to fetch examinations: ${error.response?.data?.message || error.message}`);
       }
-    );
-    return response.data;
+      throw error;
+    }
   },
 
   /**
@@ -90,39 +102,27 @@ const examinationService = {
   createExamination: async (
     examinationData: Omit<Examination, "id" | "createdAt" | "updatedAt">
   ): Promise<Examination> => {
-    const authHeader = api.defaults.headers.common['Authorization'];
-    console.log("Creating new examination:", {
-      data: examinationData,
-      apiHeaders: {
-        hasAuthHeader: !!authHeader,
-        authHeaderPreview: typeof authHeader === 'string' ? authHeader.substring(0, 20) + '...' : 'Not a string'
-      }
-    });
-
     try {
+      // Ensure all required fields are present
+      if (!examinationData.patientId || !examinationData.doctorId || !examinationData.examDate) {
+        throw new Error("Missing required fields: patientId, doctorId, or examDate");
+      }
+
       // Map frontend field names to backend field names
       const backendData = {
-        ...examinationData,
-        examinationDate: examinationData.examDate, // Backend expects examinationDate
+        patient: { id: examinationData.patientId },
+        doctor: { id: examinationData.doctorId },
+        examinationDate: examinationData.examDate,
+        symptoms: examinationData.symptoms || '',
+        diagnosis: examinationData.diagnosis || '',
+        notes: examinationData.notes || '',
+        status: examinationData.status || ExamStatus.SCHEDULED
       };
-
-      // Remove frontend-specific field
-      const { examDate, ...finalData } = backendData as Examination & {
-        examDate?: string;
-      };
-
-      console.log("Sending examination data to backend:", finalData);
 
       const response = await api.post<Examination>(
         "/api/examinations",
-        finalData
+        backendData
       );
-
-      console.log("Examination creation response:", {
-        status: response.status,
-        hasData: !!response.data,
-        examinationId: response.data?.id
-      });
 
       return response.data;
     } catch (error) {
@@ -130,11 +130,8 @@ const examinationService = {
         console.error("Error creating examination:", {
           message: error.message,
           status: error.response?.status,
-          data: error.response?.data,
-          headers: error.response?.headers
+          data: error.response?.data
         });
-      } else {
-        console.error("Unknown error creating examination:", error);
       }
       throw error;
     }

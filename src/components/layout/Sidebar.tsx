@@ -51,157 +51,105 @@ export default function Sidebar() {
       </Link>
     );
 
-    // Role-specific menu items
-    if (user) {
-      switch (user.role) {
-        case Role.ADMIN:
-          menuItems.push(
-            // Admin has access to everything
-            <Link
-              key="patients"
-              href="/patients"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/patients")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <Users className="h-5 w-5 mr-3" />
-              Patients
-            </Link>,
-            <Link
-              key="doctors"
-              href="/doctors"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/doctors")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <Stethoscope className="h-5 w-5 mr-3" />
-              Doctors
-            </Link>,
-            <Link
-              key="technicians"
-              href="/technicians"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/technicians")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <UserPlus className="h-5 w-5 mr-3" />
-              Technicians
-            </Link>
-          );
-          break;
-
-        case Role.DOCTOR:
-          menuItems.push(
-            <Link
-              key="examinations"
-              href="/examinations"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/examinations")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <Clipboard className="h-5 w-5 mr-3" />
-              Examinations
-            </Link>,
-            <Link
-              key="prescriptions"
-              href="/prescriptions"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/prescriptions")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <FileText className="h-5 w-5 mr-3" />
-              Prescriptions
-            </Link>
-          );
-          break;
-
-        case Role.TECHNICIAN:
-          menuItems.push(
-            <Link
-              key="lab-tests"
-              href="/lab-tests"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/lab-tests")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <TestTube className="h-5 w-5 mr-3" />
-              Lab Tests
-            </Link>,
-            <Link
-              key="test-results"
-              href="/test-results"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/test-results")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <FileText className="h-5 w-5 mr-3" />
-              Test Results
-            </Link>
-          );
-          break;
-
-        case Role.RECEPTIONIST:
-          menuItems.push(
-            <Link
-              key="patients"
-              href="/patients"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/patients")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <Users className="h-5 w-5 mr-3" />
-              Patients
-            </Link>,
-            <Link
-              key="examinations"
-              href="/examinations"
-              className={`flex items-center px-3 py-2 rounded-md ${
-                isActive("/examinations")
-                  ? "bg-blue-50 text-blue-700"
-                  : "text-gray-700 hover:bg-gray-100"
-              }`}
-            >
-              <Clipboard className="h-5 w-5 mr-3" />
-              Examinations
-            </Link>
-          );
-          break;
-      }
-
-      // Medications - available to admin and doctors
-      if ([Role.ADMIN, Role.DOCTOR].includes(user.role)) {
-        menuItems.push(
-          <Link
-            key="medications"
-            href="/medications"
-            className={`flex items-center px-3 py-2 rounded-md ${
-              isActive("/medications")
-                ? "bg-blue-50 text-blue-700"
-                : "text-gray-700 hover:bg-gray-100"
-            }`}
-          >
-            <Pill className="h-5 w-5 mr-3" />
-            Medications
-          </Link>
-        );
-      }
-    }
+    // Add all menu items for all users
+    menuItems.push(
+      <Link
+        key="patients"
+        href="/patients"
+        className={`flex items-center px-3 py-2 rounded-md ${
+          isActive("/patients")
+            ? "bg-blue-50 text-blue-700"
+            : "text-gray-700 hover:bg-gray-100"
+        }`}
+      >
+        <Users className="h-5 w-5 mr-3" />
+        Patients
+      </Link>,
+      <Link
+        key="doctors"
+        href="/doctors"
+        className={`flex items-center px-3 py-2 rounded-md ${
+          isActive("/doctors")
+            ? "bg-blue-50 text-blue-700"
+            : "text-gray-700 hover:bg-gray-100"
+        }`}
+      >
+        <Stethoscope className="h-5 w-5 mr-3" />
+        Doctors
+      </Link>,
+      <Link
+        key="technicians"
+        href="/technicians"
+        className={`flex items-center px-3 py-2 rounded-md ${
+          isActive("/technicians")
+            ? "bg-blue-50 text-blue-700"
+            : "text-gray-700 hover:bg-gray-100"
+        }`}
+      >
+        <UserPlus className="h-5 w-5 mr-3" />
+        Technicians
+      </Link>,
+      <Link
+        key="examinations"
+        href="/examinations"
+        className={`flex items-center px-3 py-2 rounded-md ${
+          isActive("/examinations")
+            ? "bg-blue-50 text-blue-700"
+            : "text-gray-700 hover:bg-gray-100"
+        }`}
+      >
+        <Clipboard className="h-5 w-5 mr-3" />
+        Examinations
+      </Link>,
+      <Link
+        key="prescriptions"
+        href="/prescriptions"
+        className={`flex items-center px-3 py-2 rounded-md ${
+          isActive("/prescriptions")
+            ? "bg-blue-50 text-blue-700"
+            : "text-gray-700 hover:bg-gray-100"
+        }`}
+      >
+        <FileText className="h-5 w-5 mr-3" />
+        Prescriptions
+      </Link>,
+      <Link
+        key="lab-tests"
+        href="/lab-tests"
+        className={`flex items-center px-3 py-2 rounded-md ${
+          isActive("/lab-tests")
+            ? "bg-blue-50 text-blue-700"
+            : "text-gray-700 hover:bg-gray-100"
+        }`}
+      >
+        <TestTube className="h-5 w-5 mr-3" />
+        Lab Tests
+      </Link>,
+      <Link
+        key="test-results"
+        href="/test-results"
+        className={`flex items-center px-3 py-2 rounded-md ${
+          isActive("/test-results")
+            ? "bg-blue-50 text-blue-700"
+            : "text-gray-700 hover:bg-gray-100"
+        }`}
+      >
+        <FileText className="h-5 w-5 mr-3" />
+        Test Results
+      </Link>,
+      <Link
+        key="medications"
+        href="/medications"
+        className={`flex items-center px-3 py-2 rounded-md ${
+          isActive("/medications")
+            ? "bg-blue-50 text-blue-700"
+            : "text-gray-700 hover:bg-gray-100"
+        }`}
+      >
+        <Pill className="h-5 w-5 mr-3" />
+        Medications
+      </Link>
+    );
 
     return menuItems;
   };

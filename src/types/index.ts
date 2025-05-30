@@ -66,7 +66,7 @@ export interface Examination {
   patientId: number;
   doctorId: number;
   examDate: string; // Frontend field name
-  examinationDate?: string; // Backend field name for compatibility
+  examinationDate: string; // Backend field name
   symptoms: string;
   diagnosis: string; // Required by backend
   notes: string;

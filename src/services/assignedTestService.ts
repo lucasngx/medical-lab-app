@@ -1,5 +1,7 @@
 import api from "@/services/api";
 import { AssignedTest, TestStatus, PaginatedResponse } from "@/types";
+import { AxiosError } from "axios";
+import { Role } from "@/types";
 
 const assignedTestService = {
   /**
@@ -68,11 +70,37 @@ const assignedTestService = {
     labTestId: number;
     technicianId?: number;
   }): Promise<AssignedTest> => {
-    const response = await api.post<AssignedTest>(
-      "/api/assigned-tests/assign",
-      data
-    );
-    return response.data;
+    try {
+      // Ensure all required fields are present
+      if (!data.examinationId || !data.labTestId) {
+        throw new Error("Missing required fields: examinationId or labTestId");
+      }
+
+      // Map frontend field names to backend field names
+      const backendData = {
+        examination: { id: data.examinationId },
+        labTest: { id: data.labTestId },
+        technician: data.technicianId ? { id: data.technicianId } : undefined,
+        status: "PENDING" // Add default status
+      };
+
+      const response = await api.post<AssignedTest>(
+        "/api/assigned-tests",
+        backendData
+      );
+
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        console.error("Error assigning lab test:", {
+          message: error.message,
+          status: error.response?.status,
+          data: error.response?.data
+        });
+        throw new Error(`Failed to assign lab test: ${error.response?.data?.message || error.message}`);
+      }
+      throw error;
+    }
   },
 
   /**
