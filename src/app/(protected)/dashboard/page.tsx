@@ -8,6 +8,8 @@ import patientService from "@/services/patientService";
 import examinationService from "@/services/examinationService";
 import labTestService from "@/services/labTestService";
 import prescriptionService from "@/services/prescriptionService";
+import assignedTestService from "@/services/assignedTestService";
+import testResultService from "@/services/testResultService";
 import { formatDateToLocale } from "@/utils/dateUtils";
 import {
   ExamStatus,
@@ -17,6 +19,7 @@ import {
   TestResult,
   Prescription,
   LabTest,
+  ResultStatus,
 } from "@/types";
 import {
   UserPlus,
@@ -67,25 +70,32 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // Fetch examination data
-        const pendingExams = await examinationService.getExaminationsByStatus(
-          ExamStatus.SCHEDULED,
-          0,
-          100
-        );
+        // Fetch all patients
+        const patients = await patientService.getPatients(0, 10);
+        
+        // Fetch all examinations
+        const examinations = await examinationService.getExaminations(0, 10);
 
-        const completedExams = await examinationService.getExaminationsByStatus(
-          ExamStatus.COMPLETED,
-          0,
-          100
-        );
+        // Fetch all lab tests
+        const labTests = await labTestService.getLabTests(0, 10);
 
-        const recentExams = await examinationService.getExaminations(0, 5);
+        // Fetch all test results
+        const testResults = await testResultService.getTestResults(0, 10);
+
+        // Fetch all prescriptions
+        const prescriptions = await prescriptionService.getPrescriptions(0, 10);
 
         setDashboardStats({
-          pendingExaminations: pendingExams.total || 0,
-          completedExaminations: completedExams.total || 0,
-          recentExaminations: recentExams.data || [],
+          totalPatients: patients.total || 0,
+          recentPatients: patients.data || [],
+          pendingExaminations: examinations.data.filter(exam => exam.status === ExamStatus.SCHEDULED).length,
+          completedExaminations: examinations.data.filter(exam => exam.status === ExamStatus.COMPLETED).length,
+          pendingTests: labTests.data.filter(test => test.status === TestStatus.PENDING).length,
+          completedTests: labTests.data.filter(test => test.status === TestStatus.COMPLETED).length,
+          recentExaminations: examinations.data || [],
+          pendingLabTests: labTests.data.filter(test => test.status === TestStatus.PENDING) || [],
+          recentTestResults: testResults.data || [],
+          recentPrescriptions: prescriptions.data || [],
         });
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
@@ -398,7 +408,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {result.testName}
+                            {result.test?.name || "Unknown Test"}
                           </div>
                           <div className="text-sm text-gray-500">
                             {formatDateToLocale(result.resultDate)}

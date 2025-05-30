@@ -1,21 +1,65 @@
 import api from "@/services/api";
 import { TestResult, ResultStatus, PaginatedResponse } from "@/types";
+import { AxiosError } from "axios";
 
 const testResultService = {
   /**
+   * Test endpoint accessibility
+   */
+  testEndpoint: async () => {
+    try {
+      // Try to get a single test result first to test basic connectivity
+      const response = await api.get<TestResult>("/api/test-results/1");
+      console.log("Test endpoint response:", response.data);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError) {
+        console.error("Test endpoint error:", {
+          status: error.response?.status,
+          data: error.response?.data,
+          headers: error.config?.headers
+        });
+      }
+      throw error;
+    }
+  },
+
+  /**
    * Get all test results with pagination
    */
-  getTestResults: async (
-    page: number = 0,
-    size: number = 10
-  ): Promise<PaginatedResponse<TestResult>> => {
-    const response = await api.get<PaginatedResponse<TestResult>>(
-      "/api/test-results",
-      {
-        params: { page, size },
+  getTestResults: async (page: number, size: number) => {
+    console.log(`[TestResults] Fetching test results - page: ${page}, size: ${size}`);
+    try {
+      const response = await api.get<{ data: TestResult[]; total: number }>(
+        `/api/test-results`,
+        {
+          params: { page, size },
+        }
+      );
+      
+      // Log the full response structure for debugging
+      console.log('[TestResults] API Response:', response);
+      
+      if (!response.data) {
+        throw new Error('No data received from API');
       }
-    );
-    return response.data;
+      
+      const results = response.data.data || [];
+      const total = response.data.total || 0;
+      
+      console.log(`[TestResults] Successfully fetched ${results.length} results out of ${total} total`);
+      return { data: results, total };
+    } catch (error) {
+      console.error('[TestResults] Error fetching test results:', error);
+      if (error instanceof AxiosError) {
+        console.error('[TestResults] API Error details:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          headers: error.config?.headers
+        });
+      }
+      throw error;
+    }
   },
 
   /**
@@ -30,7 +74,7 @@ const testResultService = {
    * Create new test result
    */
   createTestResult: async (
-    testResult: Omit<TestResult, "id">
+    testResult: Omit<TestResult, "id" | "createdAt" | "updatedAt">
   ): Promise<TestResult> => {
     const response = await api.post<TestResult>(
       "/api/test-results",
@@ -107,9 +151,7 @@ const testResultService = {
   getTestResultsByStatus: async (
     status: ResultStatus
   ): Promise<TestResult[]> => {
-    const response = await api.get<TestResult[]>("/api/test-results/status", {
-      params: { status },
-    });
+    const response = await api.get<TestResult[]>(`/api/test-results/status/${status}`);
     return response.data;
   },
 };

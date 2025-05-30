@@ -60,11 +60,22 @@ const examinationService = {
     limit: number = 10
   ): Promise<PaginatedResponse<Examination>> => {
     try {
+      const user = localStorage.getItem("user");
+      const userData = user ? JSON.parse(user) : null;
+      
+      // Only include doctorId if userData exists and has an id
+      const params: any = { 
+        page, 
+        limit
+      };
+      
+      if (userData?.id) {
+        params.doctorId = userData.id;
+      }
+      
       const response = await api.get<PaginatedResponse<Examination>>(
         `/api/examinations/status/${status}`,
-        {
-          params: { page, limit }
-        }
+        { params }
       );
       return response.data;
     } catch (error) {
@@ -72,7 +83,8 @@ const examinationService = {
         console.error("Error fetching examinations by status:", {
           status: error.response?.status,
           data: error.response?.data,
-          message: error.message
+          message: error.message,
+          params: error.config?.params
         });
         throw new Error(`Failed to fetch examinations: ${error.response?.data?.message || error.message}`);
       }

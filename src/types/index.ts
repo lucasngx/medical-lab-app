@@ -8,21 +8,20 @@ export enum ExamStatus {
 export enum TestStatus {
   PENDING = "PENDING",
   IN_PROGRESS = "IN_PROGRESS",
-  COMPLETED = "COMPLETED",
-  CANCELLED = "CANCELLED",
+  COMPLETED = "COMPLETED"
 }
 
 export enum ResultStatus {
-  DRAFT = "DRAFT",
+  PENDING = "PENDING",
   SUBMITTED = "SUBMITTED",
-  REVIEWED = "REVIEWED",
+  REVIEWED = "REVIEWED"
 }
 
 export enum Role {
   ADMIN = "ADMIN",
   DOCTOR = "DOCTOR",
   TECHNICIAN = "TECHNICIAN",
-  RECEPTIONIST = "RECEPTIONIST",
+  PATIENT = "PATIENT"
 }
 
 export interface ReferenceRange {
@@ -80,34 +79,41 @@ export interface Examination {
 export interface LabTest {
   id: number;
   name: string;
+  code: string;
   description: string;
+  price: number;
+  status: string;
   unit: string;
   refRange: ReferenceRange;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TestResult {
+  id: number;
+  technician: Technician;
+  patient: Patient;
+  test: LabTest;
+  assignedTestId: number;
+  resultData: string;
+  result: string;
+  notes: string;
+  resultDate: string;
+  status: ResultStatus;
+  comment?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AssignedTest {
   id: number;
   examinationId: number;
   labTestId: number;
+  patientId: number;
   status: TestStatus;
-  assignedDate: string; // We keep this as string for frontend, it will be converted from Java Date
-  // Relations and frontend display fields
-  labTest?: LabTest;
-  result?: TestResult;
-  testName?: string;
+  assignedDate: string;
+  test?: LabTest;
   patientName?: string;
-}
-
-export interface TestResult {
-  id: number;
-  assignedTestId: number;
-  technicianId: number;
-  resultData: string;
-  resultDate: string;
-  status: ResultStatus;
-  comment: string;
-  technician?: Technician;
-  [key: string]: any; // For dynamic properties
 }
 
 export interface Prescription {

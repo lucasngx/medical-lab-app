@@ -53,6 +53,17 @@ api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     if (error.response) {
+      console.error('API Error:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers,
+        requestHeaders: error.config?.headers,
+        requestData: error.config?.data
+      });
+
       if (error.response.status === 401) {
         // Handle unauthorized access (token expired or invalid)
         if (typeof window !== "undefined") {
@@ -60,6 +71,21 @@ api.interceptors.response.use(
           localStorage.removeItem("user");
           window.location.href = "/login";
         }
+      } else if (error.response.status === 403) {
+        console.error('Forbidden access - Check user permissions:', {
+          user: localStorage.getItem("user"),
+          token: localStorage.getItem("auth_token")
+        });
+      } else if (error.response.status === 500) {
+        // Log additional details for 500 errors
+        console.error('Server Error Details:', {
+          error: error.response.data,
+          requestUrl: error.config?.url,
+          requestMethod: error.config?.method,
+          requestHeaders: error.config?.headers,
+          requestData: error.config?.data,
+          authToken: getAccessToken()
+        });
       }
     }
     return Promise.reject(error);

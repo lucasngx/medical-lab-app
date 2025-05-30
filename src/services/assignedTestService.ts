@@ -1,7 +1,16 @@
-import api from "@/services/api";
+import { api } from '../config/api';
 import { AssignedTest, TestStatus, PaginatedResponse } from "@/types";
 import { AxiosError } from "axios";
 import { Role } from "@/types";
+
+export interface CreateAssignedTestRequest {
+  testId: number;
+  patientId: number;
+  doctorId: number;
+  examinationId: number;
+  technicianId?: number;
+  notes?: string;
+}
 
 const assignedTestService = {
   /**
@@ -23,36 +32,57 @@ const assignedTestService = {
   /**
    * Get assigned test by ID
    */
-  getAssignedTestById: async (id: number): Promise<AssignedTest> => {
-    const response = await api.get<AssignedTest>(`/api/assigned-tests/${id}`);
-    return response.data;
+  getById: async (id: number): Promise<AssignedTest> => {
+    try {
+      const response = await api.get<AssignedTest>(`/api/assigned-tests/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching assigned test:', error);
+      throw error;
+    }
   },
 
   /**
    * Create new assigned test
    */
-  createAssignedTest: async (
-    assignedTest: Omit<AssignedTest, "id">
-  ): Promise<AssignedTest> => {
-    const response = await api.post<AssignedTest>(
-      "/api/assigned-tests",
-      assignedTest
-    );
-    return response.data;
+  create: async (data: CreateAssignedTestRequest): Promise<AssignedTest> => {
+    // Validate required fields
+    if (!data.testId) throw new Error('Test ID is required');
+    if (!data.patientId) throw new Error('Patient ID is required');
+    if (!data.doctorId) throw new Error('Doctor ID is required');
+    if (!data.examinationId) throw new Error('Examination ID is required');
+
+    try {
+      // Format the request to match backend expectations
+      const requestData = {
+        test: { id: data.testId },
+        patient: { id: data.patientId },
+        doctor: { id: data.doctorId },
+        examination: { id: data.examinationId },
+        technician: data.technicianId ? { id: data.technicianId } : undefined,
+        notes: data.notes,
+        status: 'PENDING' // Default status
+      };
+
+      const response = await api.post<AssignedTest>('/api/assigned-tests', requestData);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating assigned test:', error);
+      throw error;
+    }
   },
 
   /**
    * Update assigned test
    */
-  updateAssignedTest: async (
-    id: number,
-    assignedTest: Partial<AssignedTest>
-  ): Promise<AssignedTest> => {
-    const response = await api.put<AssignedTest>(
-      `/api/assigned-tests/${id}`,
-      assignedTest
-    );
-    return response.data;
+  update: async (id: number, data: Partial<AssignedTest>): Promise<AssignedTest> => {
+    try {
+      const response = await api.put<AssignedTest>(`/api/assigned-tests/${id}`, data);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating assigned test:', error);
+      throw error;
+    }
   },
 
   /**
@@ -139,10 +169,7 @@ const assignedTestService = {
     status: TestStatus
   ): Promise<PaginatedResponse<AssignedTest>> => {
     const response = await api.get<PaginatedResponse<AssignedTest>>(
-      "/api/assigned-tests/status",
-      {
-        params: { status },
-      }
+      `/api/assigned-tests/status/${status}`
     );
     return response.data;
   },

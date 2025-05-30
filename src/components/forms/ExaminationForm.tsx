@@ -268,12 +268,14 @@ export default function ExaminationForm({
       }
 
       // If we have selected tests, assign them to the examination
-      if (selectedTests.length > 0 && newExaminationId) {
+      if (selectedTests.length > 0 && newExaminationId && formData.patientId) {
         await Promise.all(
           selectedTests.map(async (testId) => {
-            await assignedTestService.assignLabTest({
-              examinationId: newExaminationId,
-              labTestId: testId,
+            await assignedTestService.create({
+              testId: Number(testId),
+              patientId: Number(formData.patientId),
+              doctorId: Number(user.id),
+              examinationId: Number(newExaminationId)
             });
           })
         );

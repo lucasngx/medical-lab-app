@@ -4,21 +4,31 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
-import { TestResult, ResultStatus, ExamStatus, Examination } from "@/types";
+import { TestResult, ResultStatus } from "@/types";
 import { formatDateToLocale } from "@/utils/dateUtils";
 import { usePagination } from "@/hooks/usePagination";
 import testResultService from "@/services/testResultService";
-import examinationService from "@/services/examinationService";
+
+interface TestResultWithDetails extends TestResult {
+  assignedTest?: {
+    labTest?: {
+      name: string;
+    };
+    examination?: {
+      patient?: {
+        name: string;
+      };
+    };
+  };
+}
 
 export default function TestResultsPage() {
-  const [testResults, setTestResults] = useState<TestResult[]>([]);
+  const [testResults, setTestResults] = useState<TestResultWithDetails[]>([]);
   const [totalResults, setTotalResults] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<ResultStatus | "">("");
   const [searchTerm, setSearchTerm] = useState("");
   const router = useRouter();
-  const [examinations, setExaminations] = useState<Examination[]>([]);
-  const [totalExams, setTotalExams] = useState(0);
 
   const pagination = usePagination({
     totalItems: totalResults,
@@ -30,15 +40,28 @@ export default function TestResultsPage() {
     const fetchTestResults = async () => {
       setIsLoading(true);
       try {
-        const response = await testResultService.getTestResults(
-          pagination.currentPage - 1, // API uses 0-based pagination
-          pagination.itemsPerPage
-        );
+        let results: TestResultWithDetails[] = [];
+        let total = 0;
 
-        setTestResults(response.data);
-        setTotalResults(response.total);
+        if (statusFilter) {
+          const response = await testResultService.getTestResultsByStatus(statusFilter);
+          results = response;
+          total = response.length;
+        } else {
+          const response = await testResultService.getTestResults(
+            pagination.currentPage - 1,
+            pagination.itemsPerPage
+          );
+          results = response.data;
+          total = response.total;
+        }
+
+        setTestResults(results);
+        setTotalResults(total);
       } catch (error) {
         console.error("Failed to fetch test results:", error);
+        setTestResults([]);
+        setTotalResults(0);
       } finally {
         setIsLoading(false);
       }
@@ -58,48 +81,20 @@ export default function TestResultsPage() {
     }
   };
 
-  useEffect(() => {
-    const fetchExaminations = async () => {
-      setIsLoading(true);
-      try {
-        const response = await examinationService.getExaminations(
-          pagination.currentPage - 1, // API uses 0-based pagination
-          pagination.itemsPerPage
-        );
+  const filteredResults = (testResults || []).filter((result) => {
+    if (!result) return false;
+    
+    const searchTermLower = searchTerm.toLowerCase();
+    const technicianName = result.technician?.name?.toLowerCase() || '';
+    const resultData = result.resultData?.toLowerCase() || '';
+    const comment = result.comment?.toLowerCase() || '';
 
-        console.log("Fetched examinations:", response.data);
-
-        setExaminations(response.data);
-        setTotalExams(response.total);
-      } catch (error) {
-        console.error("Failed to fetch examinations:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchExaminations();
-  }, [pagination.currentPage, pagination.itemsPerPage, statusFilter]);
-
-  const getStatusColor1 = (status: ExamStatus) => {
-    switch (status) {
-      case ExamStatus.COMPLETED:
-        return "bg-green-100 text-green-800";
-      case ExamStatus.IN_PROGRESS:
-        return "bg-blue-100 text-blue-800";
-      default:
-        return "bg-yellow-100 text-yellow-800";
-    }
-  };
-
-  const filteredResults = testResults.filter(
-    (result) =>
-      result.technician?.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      result.resultData.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      result.comment?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+    return (
+      technicianName.includes(searchTermLower) ||
+      resultData.includes(searchTermLower) ||
+      comment.includes(searchTermLower)
+    );
+  });
 
   if (isLoading) {
     return (
@@ -110,224 +105,68 @@ export default function TestResultsPage() {
   }
 
   return (
-    <>
-      <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Test Results</h1>
-          <p className="text-gray-600 mt-1">
-            View and manage laboratory test results
-          </p>
-        </div>
-
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="p-4 sm:flex sm:items-center sm:justify-between border-b">
-            <div className="flex items-center space-x-4">
-              <select
-                value={statusFilter}
-                onChange={(e) =>
-                  setStatusFilter(e.target.value as ExamStatus | "")
-                }
-                className="block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-              >
-                <option value="">All Statuses</option>
-                {Object.values(ExamStatus).map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              onClick={() => router.push("/examinations/new")}
-              className="mt-3 sm:mt-0 w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              New Examination
-            </button>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Exam Info
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Patient
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Doctor
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                  >
-                    Status
-                  </th>
-                  <th scope="col" className="relative px-6 py-3">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {examinations.map((examination) => (
-                  <tr
-                    key={examination.id}
-                    className="hover:bg-gray-50 cursor-pointer"
-                    // onClick={() => router.push(`/examinations/${examination.id}`)}
-                  >
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-blue-600">
-                        Examination #{examination.id}
-                      </div>
-                      <div className="text-sm text-gray-500 mt-1">
-                        {formatDateToLocale(examination.examDate)}
-                      </div>
-                      {examination.symptoms && (
-                        <div className="text-sm text-gray-500 mt-1 line-clamp-1">
-                          {examination.symptoms}
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {examination.patient?.name || examination.patientId}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {examination.doctor?.name || examination.doctorId}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor1(
-                          examination.status
-                        )}`}
-                      >
-                        {examination.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-3">
-                        <Link
-                          href="/test-results/new"
-                          className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          New Test Result
-                        </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {examinations.length === 0 && !isLoading && (
-            <div className="text-center py-10">
-              <p className="text-gray-500">No examinations found</p>
-            </div>
-          )}
-
-          {totalExams > pagination.itemsPerPage && (
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-700">
-                  Page {pagination.currentPage} of {pagination.totalPages}
-                </div>
-                <div className="flex space-x-2">
-                  <button
-                    onClick={() => pagination.prevPage()}
-                    disabled={pagination.currentPage === 1}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => pagination.nextPage()}
-                    disabled={pagination.currentPage >= pagination.totalPages}
-                    className="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Test Results</h1>
+        <p className="text-gray-600 mt-1">
+          View and manage laboratory test results
+        </p>
       </div>
 
-      {/* <div className="p-6">
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="p-4 border-b border-gray-200 flex flex-wrap gap-4 items-center justify-between">
-          <div className="flex-1 min-w-[200px] max-w-xs">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder="Search results..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
-            </div>
-          </div>
-
-          <div className="flex gap-4 items-center">
-            <div className="w-48">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as ResultStatus | "")}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">All Statuses</option>
-                {Object.values(ResultStatus).map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <Link
-              href="/test-results/new"
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        <div className="p-4 sm:flex sm:items-center sm:justify-between border-b">
+          <div className="flex items-center space-x-4">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as ResultStatus | "")}
+              className="block rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              New Test Result
-            </Link>
+              <option value="">All Statuses</option>
+              {Object.values(ResultStatus).map((status) => (
+                <option key={status} value={status}>
+                  {status}
+                </option>
+              ))}
+            </select>
           </div>
+          <button
+            onClick={() => router.push("/test-results/new")}
+            className="mt-3 sm:mt-0 w-full sm:w-auto inline-flex justify-center items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            New Test Result
+          </button>
         </div>
 
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Test Details
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Test Info
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Result
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Patient
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Technician
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   Status
                 </th>
-                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
+                <th scope="col" className="relative px-6 py-3">
+                  <span className="sr-only">Actions</span>
                 </th>
               </tr>
             </thead>
@@ -335,29 +174,48 @@ export default function TestResultsPage() {
               {filteredResults.map((result) => (
                 <tr
                   key={result.id}
-                  onClick={() => router.push(`/test-results/${result.id}`)}
                   className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => router.push(`/test-results/${result.id}`)}
                 >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-blue-600">Test #{result.assignedTestId}</div>
-                    {result.comment && (
-                      <div className="text-sm text-gray-500 truncate max-w-xs">{result.comment}</div>
-                    )}
+                  <td className="px-6 py-4">
+                    <div className="text-sm font-medium text-blue-600">
+                      {result.assignedTest?.labTest?.name}
+                    </div>
+                    <div className="text-sm text-gray-500 mt-1">
+                      {formatDateToLocale(result.resultDate)}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{result.resultData}</div>
+                    <div className="text-sm text-gray-900">
+                      {result.assignedTest?.examination?.patient?.name}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{result.technician?.name}</div>
-                    <div className="text-sm text-gray-500">{result.technician?.department}</div>
+                    <div className="text-sm text-gray-900">
+                      {result.technician?.name}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(result.status)}`}>
+                    <span
+                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(
+                        result.status
+                      )}`}
+                    >
                       {result.status}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDateToLocale(result.resultDate)}
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <div className="flex justify-end space-x-3">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/test-results/${result.id}/edit`);
+                        }}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -365,102 +223,65 @@ export default function TestResultsPage() {
           </table>
         </div>
 
-        {totalResults > pagination.itemsPerPage && (
-          <div className="px-4 py-3 border-t border-gray-200 sm:px-6">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 flex justify-between sm:hidden">
+        {/* Pagination */}
+        <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <button
+              onClick={() => pagination.prevPage()}
+              disabled={pagination.currentPage === 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => pagination.nextPage()}
+              disabled={pagination.currentPage === pagination.totalPages}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+            >
+              Next
+            </button>
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700">
+                Showing{" "}
+                <span className="font-medium">
+                  {(pagination.currentPage - 1) * pagination.itemsPerPage + 1}
+                </span>{" "}
+                to{" "}
+                <span className="font-medium">
+                  {Math.min(
+                    pagination.currentPage * pagination.itemsPerPage,
+                    totalResults
+                  )}
+                </span>{" "}
+                of <span className="font-medium">{totalResults}</span> results
+              </p>
+            </div>
+            <div>
+              <nav
+                className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                aria-label="Pagination"
+              >
                 <button
                   onClick={() => pagination.prevPage()}
                   disabled={pagination.currentPage === 1}
-                  className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                    pagination.currentPage > 1
-                      ? "text-gray-700 bg-white hover:bg-gray-50"
-                      : "text-gray-300 bg-gray-50 cursor-not-allowed"
-                  }`}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
                 >
                   Previous
                 </button>
                 <button
                   onClick={() => pagination.nextPage()}
-                  disabled={pagination.currentPage >= pagination.totalPages}
-                  className={`ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                    pagination.currentPage < pagination.totalPages
-                      ? "text-gray-700 bg-white hover:bg-gray-50"
-                      : "text-gray-300 bg-gray-50 cursor-not-allowed"
-                  }`}
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
                 >
                   Next
                 </button>
-              </div>
-              <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm text-gray-700">
-                    Showing{" "}
-                    <span className="font-medium">
-                      {(pagination.currentPage - 1) * pagination.itemsPerPage + 1}
-                    </span>{" "}
-                    to{" "}
-                    <span className="font-medium">
-                      {Math.min(
-                        pagination.currentPage * pagination.itemsPerPage,
-                        totalResults
-                      )}
-                    </span>{" "}
-                    of <span className="font-medium">{totalResults}</span> results
-                  </p>
-                </div>
-                <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                  <button
-                    onClick={() => pagination.goToPage(1)}
-                    disabled={pagination.currentPage === 1}
-                    className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
-                      pagination.currentPage > 1
-                        ? "text-gray-500 hover:bg-gray-50"
-                        : "text-gray-300 cursor-not-allowed"
-                    }`}
-                  >
-                    First
-                  </button>
-                  <button
-                    onClick={() => pagination.prevPage()}
-                    disabled={pagination.currentPage === 1}
-                    className={`relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium ${
-                      pagination.currentPage > 1
-                        ? "text-gray-500 hover:bg-gray-50"
-                        : "text-gray-300 cursor-not-allowed"
-                    }`}
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => pagination.nextPage()}
-                    disabled={pagination.currentPage >= pagination.totalPages}
-                    className={`relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium ${
-                      pagination.currentPage < pagination.totalPages
-                        ? "text-gray-500 hover:bg-gray-50"
-                        : "text-gray-300 cursor-not-allowed"
-                    }`}
-                  >
-                    Next
-                  </button>
-                  <button
-                    onClick={() => pagination.goToPage(pagination.totalPages)}
-                    disabled={pagination.currentPage >= pagination.totalPages}
-                    className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
-                      pagination.currentPage < pagination.totalPages
-                        ? "text-gray-500 hover:bg-gray-50"
-                        : "text-gray-300 cursor-not-allowed"
-                    }`}
-                  >
-                    Last
-                  </button>
-                </nav>
-              </div>
+              </nav>
             </div>
           </div>
-        )}
+        </div>
       </div>
-    </div> */}
-    </>
+    </div>
   );
 }
